@@ -171,6 +171,41 @@ class WindowsCPP
 	{
 	}
 
+    @:functionCode('
+        HWND hwnd = GetActiveWindow();
+        
+        HWND hDialog = CreateWindowEx(
+            0,
+            "STATIC",
+            message,
+            WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL,
+            CW_USEDEFAULT, CW_USEDEFAULT, 400, 300,
+            hwnd,
+            NULL,
+            GetModuleHandle(NULL),
+            NULL
+        );
+        
+        if (hDialog == NULL) {
+            MessageBox(hwnd, "Failed to create dialog", "Error", MB_ICONERROR);
+            return;
+        }
+        
+        SetWindowText(hDialog, message);
+        
+        ShowWindow(hDialog, SW_SHOW);
+        UpdateWindow(hDialog);
+        
+        MSG msg;
+        while (GetMessage(&msg, NULL, 0, 0) > 0) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+    ')
+    public static function showScrollableMessage(caption:String, message:String) 
+	{
+    }
+
 	@:functionCode('
 		globalWindowTitle = windowTitle;
 	')
@@ -237,8 +272,8 @@ class WindowsCPP
 	}
 
 	@:functionCode('
-	HWND window = GET_MAIN_WINDOW();
-	SetWindowLong(window, GWL_EXSTYLE, GetWindowLong(window, GWL_EXSTYLE) ^ WS_EX_LAYERED);
+		HWND window = GET_MAIN_WINDOW();
+		SetWindowLong(window, GWL_EXSTYLE, GetWindowLong(window, GWL_EXSTYLE) ^ WS_EX_LAYERED);
 	')
 	public static function _setWindowLayered()
 	{

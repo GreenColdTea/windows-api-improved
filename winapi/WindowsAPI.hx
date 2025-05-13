@@ -29,6 +29,10 @@ class WindowsAPI {
 		WindowsCPP.showMessageBox(caption, message, icon);
 	}
 
+	public static function showScrollableMessage(message:String, caption:String) {
+		WindowsCPP.showScrollableMessage(caption, message);
+	}
+
 	public static function getWindowsTransparent() {
 		WindowsCPP.getWindowsTransparent();
 	}
