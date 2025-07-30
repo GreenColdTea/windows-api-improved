@@ -14,6 +14,18 @@ enum abstract MessageBoxIcon(Int) {
 	var MSG_QUESTION = 0x00000020;
 	var MSG_WARNING = 0x00000030;
 	var MSG_INFORMATION = 0x00000040;
+	var MSG_NONE = 0x00;
+}
+
+enum abstract MessageBoxType(Int) {
+	var MSG_ABORTRETRYIGNORE = 0x00000002;
+	var MSG_CANCELTRYCONTINUE = 0x00000006;
+	var MSG_HELP = 0x00004000;
+	var MSG_OKCANCEL = 0x00000001;
+	var MSG_RETRYCANCEL = 0x00000005;
+	var MSG_YESNO = 0x00000004;
+	var MSG_YESNOCANCEL = 0x00000003;
+	var MSG_OK = 0x00000000;
 }
 
 class WindowsAPI {
@@ -25,8 +37,8 @@ class WindowsAPI {
 		WindowsCPP.windowsScreenShot(path);
 	}
 
-	public static function showMessageBox(message:String, caption:String, icon:MessageBoxIcon = MSG_WARNING) {
-		WindowsCPP.showMessageBox(caption, message, icon);
+	public static function showMessageBox(message:String, caption:String, icon:MessageBoxIcon = MSG_WARNING, type:MessageBoxType = MSG_OK) {
+		WindowsCPP.showMessageBox(caption, message, icon, type);
 	}
 
 	public static function showScrollableMessage(message:String, caption:String) {

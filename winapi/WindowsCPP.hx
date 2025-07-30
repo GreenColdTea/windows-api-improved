@@ -165,9 +165,9 @@ int screenCapture(int x, int y, int w, int h, LPCSTR fname)
 class WindowsCPP
 {
 	@:functionCode('
-		MessageBox(GetActiveWindow(), message, caption, icon | MB_SETFOREGROUND);
+		MessageBox(GetActiveWindow(), message, caption, icon | type);
 	')
-	public static function showMessageBox(caption:String, message:String, icon:WindowsAPI.MessageBoxIcon = MSG_WARNING)
+	public static function showMessageBox(caption:String, message:String, icon:WindowsAPI.MessageBoxIcon = MSG_WARNING, type:WindowsAPI.MessageBoxType = MSG_OK)
 	{
 	}
 
