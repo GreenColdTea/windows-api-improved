@@ -4,6 +4,7 @@ package winapi;
  * More than 600 lines of almost pure C++ code :3 
  * 
  * Author: Slushi
+ * Modifier: JustX
  */
 
 #if windows
@@ -172,39 +173,123 @@ class WindowsCPP
 	}
 
     @:functionCode('
-        HWND hwnd = GetActiveWindow();
-        
-        HWND hDialog = CreateWindowEx(
-            0,
-            "STATIC",
-            message,
-            WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL,
-            CW_USEDEFAULT, CW_USEDEFAULT, 400, 300,
-            hwnd,
-            NULL,
-            GetModuleHandle(NULL),
-            NULL
-        );
-        
-        if (hDialog == NULL) {
-            MessageBox(hwnd, "Failed to create dialog", "Error", MB_ICONERROR);
-            return;
-        }
-        
-        SetWindowText(hDialog, message);
-        
-        ShowWindow(hDialog, SW_SHOW);
-        UpdateWindow(hDialog);
-        
-        MSG msg;
-        while (GetMessage(&msg, NULL, 0, 0) > 0) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    ')
-    public static function showScrollableMessage(caption:String, message:String) 
+		HWND hwnd = GetActiveWindow();
+		
+		const char* className = "ScrollableMessageClass";
+		WNDCLASSEX wc = {0};
+		wc.cbSize = sizeof(WNDCLASSEX);
+		wc.style = CS_HREDRAW | CS_VREDRAW;
+		wc.lpfnWndProc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) -> LRESULT {
+			switch (uMsg) {
+				case WM_CLOSE:
+					DestroyWindow(hwnd);
+					return 0;
+				case WM_DESTROY:
+					PostQuitMessage(0);
+					return 0;
+				case WM_COMMAND:
+					if (LOWORD(wParam) == 1) {
+						DestroyWindow(hwnd);
+						return 0;
+					}
+					break;
+				case WM_NCHITTEST: {
+					// Позволяем перетаскивать окно за любую точку клиентской области
+					LRESULT hit = DefWindowProc(hwnd, uMsg, wParam, lParam);
+					if (hit == HTCLIENT) hit = HTCAPTION;
+					return hit;
+				}
+			}
+			return DefWindowProc(hwnd, uMsg, wParam, lParam);
+		};
+		wc.hInstance = GetModuleHandle(NULL);
+		wc.hIcon = NULL; //kill the fucking icons
+    	wc.hIconSm = NULL;
+		wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+		wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
+		wc.lpszClassName = className;
+
+		RegisterClassEx(&wc);
+
+		HWND hDialog = CreateWindowEx(
+			0,
+			className,
+			caption,
+			WS_POPUP | WS_CAPTION,
+			CW_USEDEFAULT, CW_USEDEFAULT, 500, 600,
+			hwnd,
+			NULL,
+			GetModuleHandle(NULL),
+			NULL
+		);
+
+		if (hDialog == NULL) {
+			MessageBox(hwnd, "Failed to create dialog", "Error", MB_ICONERROR);
+			return;
+		}
+
+		// "close" button
+		HWND hButton = CreateWindow(
+			"BUTTON",
+			"Close",
+			WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+			400, 520, 80, 30,
+			hDialog,
+			(HMENU)1,
+			GetModuleHandle(NULL),
+			NULL
+		);
+
+		// text field with scroll
+		HWND hEdit = CreateWindowEx(
+			WS_EX_CLIENTEDGE,
+			"EDIT",
+			message,
+			WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
+			10, 10, 480, 500,
+			hDialog,
+			NULL,
+			GetModuleHandle(NULL),
+			NULL
+		);
+
+		if (hEdit == NULL) {
+			MessageBox(hwnd, "Failed to create edit control", "Error", MB_ICONERROR);
+			DestroyWindow(hDialog);
+			return;
+		}
+
+		HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+		SendMessage(hEdit, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessage(hButton, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+		// window centering
+		RECT rc;
+		GetWindowRect(hDialog, &rc);
+		int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+		int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+		int x = (screenWidth - (rc.right - rc.left)) / 2;
+		int y = (screenHeight - (rc.bottom - rc.top)) / 2;
+		SetWindowPos(hDialog, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+
+		ShowWindow(hDialog, SW_SHOW);
+		UpdateWindow(hDialog);
+
+		MSG msg;
+		BOOL bRet;
+		while ((bRet = GetMessage(&msg, NULL, 0, 0)) != 0) {
+			if (bRet == -1) {
+				// err
+				break;
+			} else {
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+		}
+	')
+	public static function showScrollableMessage(caption:String, message:String) 
 	{
-    }
+	}
 
 	@:functionCode('
 		globalWindowTitle = windowTitle;
