@@ -173,13 +173,36 @@ class WindowsCPP
 	}
 
     @:functionCode('
+		// convert UTF-8 strings to wide strings (wchar_t)
+		int captionLen = MultiByteToWideChar(CP_UTF8, 0, caption, -1, NULL, 0);
+		wchar_t* wCaption = (wchar_t*)malloc(captionLen * sizeof(wchar_t));
+		MultiByteToWideChar(CP_UTF8, 0, caption, -1, wCaption, captionLen);
+
+		int messageLen = MultiByteToWideChar(CP_UTF8, 0, message, -1, NULL, 0);
+		wchar_t* wMessage = (wchar_t*)malloc(messageLen * sizeof(wchar_t));
+		MultiByteToWideChar(CP_UTF8, 0, message, -1, wMessage, messageLen);
+
+		// Replace all single \\n with \\r\\n in wide string
+		int newLen = messageLen * 2; // Maximum possible length after replacement
+		wchar_t* formattedMessage = (wchar_t*)malloc(newLen * sizeof(wchar_t));
+		int j = 0;
+		
+		for (int i = 0; i < messageLen && wMessage[i] != L\'\\0\'; i++) {
+			if (wMessage[i] == L\'\\n\' && (i == 0 || wMessage[i-1] != L\'\\r\')) {
+				formattedMessage[j++] = L\'\\r\';
+				formattedMessage[j++] = L\'\\n\';
+			} else {
+				formattedMessage[j++] = wMessage[i];
+			}
+		}
+		formattedMessage[j] = L\'\\0\';
+
 		HWND hwnd = GetActiveWindow();
 		
-		const char* className = "ScrollableMessageClass";
-		WNDCLASSEX wc = {0};
-		wc.cbSize = sizeof(WNDCLASSEX);
-		wc.style = CS_HREDRAW | CS_VREDRAW;
-		wc.lpfnWndProc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) -> LRESULT {
+		const wchar_t* className = L"ScrollableMessageClass";
+		
+		// define window procedure w/ button handling
+		WNDPROC windowProc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) -> LRESULT {
 			switch (uMsg) {
 				case WM_CLOSE:
 					DestroyWindow(hwnd);
@@ -188,35 +211,41 @@ class WindowsCPP
 					PostQuitMessage(0);
 					return 0;
 				case WM_COMMAND:
-					if (LOWORD(wParam) == 1) {
+					if (LOWORD(wParam) == 1) { // button ID
 						DestroyWindow(hwnd);
 						return 0;
 					}
 					break;
-				case WM_NCHITTEST: {
-					// Позволяем перетаскивать окно за любую точку клиентской области
-					LRESULT hit = DefWindowProc(hwnd, uMsg, wParam, lParam);
+				case WM_NCHITTEST: 
+				{
+					LRESULT hit = DefWindowProcW(hwnd, uMsg, wParam, lParam);
 					if (hit == HTCLIENT) hit = HTCAPTION;
 					return hit;
 				}
 			}
-			return DefWindowProc(hwnd, uMsg, wParam, lParam);
+			return DefWindowProcW(hwnd, uMsg, wParam, lParam);
 		};
+		
+		WNDCLASSEXW wc = {0};
+		wc.cbSize = sizeof(WNDCLASSEXW);
+		wc.style = CS_HREDRAW | CS_VREDRAW;
+		wc.lpfnWndProc = windowProc;
 		wc.hInstance = GetModuleHandle(NULL);
-		wc.hIcon = NULL; //kill the fucking icons
-    	wc.hIconSm = NULL;
+		wc.hIcon = NULL;
+		wc.hIconSm = NULL;
 		wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 		wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
 		wc.lpszClassName = className;
 
-		RegisterClassEx(&wc);
+		RegisterClassExW(&wc);
 
-		HWND hDialog = CreateWindowEx(
-			0,
+		// create window w/o minimize/maximize buttons and w/o size border
+		HWND hDialog = CreateWindowExW(
+			WS_EX_DLGMODALFRAME,
 			className,
-			caption,
-			WS_POPUP | WS_CAPTION,
-			CW_USEDEFAULT, CW_USEDEFAULT, 500, 600,
+			wCaption,
+			WS_POPUP | WS_CAPTION | WS_SYSMENU, // Removed WS_SIZEBOX and WS_MAXIMIZEBOX
+			CW_USEDEFAULT, CW_USEDEFAULT, 800, 800,
 			hwnd,
 			NULL,
 			GetModuleHandle(NULL),
@@ -224,44 +253,67 @@ class WindowsCPP
 		);
 
 		if (hDialog == NULL) {
-			MessageBox(hwnd, "Failed to create dialog", "Error", MB_ICONERROR);
+			MessageBoxW(NULL, L"Failed to create dialog", L"Error", MB_ICONERROR);
+			free(wCaption);
+			free(wMessage);
+			free(formattedMessage);
 			return;
 		}
 
-		// "close" button
-		HWND hButton = CreateWindow(
-			"BUTTON",
-			"Close",
-			WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-			400, 520, 80, 30,
-			hDialog,
-			(HMENU)1,
-			GetModuleHandle(NULL),
-			NULL
-		);
-
-		// text field with scroll
-		HWND hEdit = CreateWindowEx(
+		// Text field with scroll
+		HWND hEdit = CreateWindowExW(
 			WS_EX_CLIENTEDGE,
-			"EDIT",
-			message,
-			WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
-			10, 10, 480, 500,
+			L"EDIT",
+			formattedMessage,
+			WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_READONLY | ES_WANTRETURN,
+			10, 10, 780, 700,
 			hDialog,
-			NULL,
+			(HMENU)100,
 			GetModuleHandle(NULL),
 			NULL
 		);
 
-		if (hEdit == NULL) {
-			MessageBox(hwnd, "Failed to create edit control", "Error", MB_ICONERROR);
+		// center the close button horizontally
+		int buttonWidth = 100;
+		int buttonHeight = 40;
+		int buttonX = (800 - buttonWidth) / 2; // center horizontally
+		int buttonY = 720; // Position vertically
+
+		// "Close" button
+		HWND hButton = CreateWindowW(
+			L"BUTTON",
+			L"Close",
+			WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+			buttonX, buttonY, buttonWidth, buttonHeight,
+			hDialog,
+			(HMENU)1, // button ID
+			GetModuleHandle(NULL),
+			NULL
+		);
+
+		free(wCaption);
+		free(wMessage);
+		free(formattedMessage);
+
+		if (hEdit == NULL || hButton == NULL) {
+			MessageBoxW(NULL, L"Failed to create controls", L"Error", MB_ICONERROR);
 			DestroyWindow(hDialog);
 			return;
 		}
 
-		HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
-		SendMessage(hEdit, WM_SETFONT, (WPARAM)hFont, TRUE);
-		SendMessage(hButton, WM_SETFONT, (WPARAM)hFont, TRUE);
+		// use a fixed-width font for better readability
+		HFONT hFont = CreateFontW(
+			14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+			DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+			DEFAULT_QUALITY, FF_DONTCARE, L"Consolas"
+		);
+		
+		if (hFont == NULL) {
+			hFont = (HFONT)GetStockObject(SYSTEM_FIXED_FONT);
+		}
+		
+		SendMessageW(hEdit, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hButton, WM_SETFONT, (WPARAM)hFont, TRUE);
 
 		// window centering
 		RECT rc;
@@ -275,16 +327,15 @@ class WindowsCPP
 		ShowWindow(hDialog, SW_SHOW);
 		UpdateWindow(hDialog);
 
+		// msg loop
 		MSG msg;
-		BOOL bRet;
-		while ((bRet = GetMessage(&msg, NULL, 0, 0)) != 0) {
-			if (bRet == -1) {
-				// err
-				break;
-			} else {
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-			}
+		while (GetMessage(&msg, NULL, 0, 0)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+
+		if (hFont != NULL && hFont != GetStockObject(SYSTEM_FIXED_FONT)) {
+			DeleteObject(hFont);
 		}
 	')
 	public static function showScrollableMessage(caption:String, message:String) 
