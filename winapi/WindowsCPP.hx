@@ -7,7 +7,7 @@ package winapi;
  * Modifier: JustX
  */
 
-#if windows
+#if (cpp && windows)
 @:buildXml('
 <compilerflag value="/DelayLoad:ComCtl32.dll"/>
 
@@ -727,7 +727,20 @@ class WindowsCPP
 	public static function _setWindowLayeredMode(numberMode:Int)
 	{
 	}
+
+	public static function disableWindowsGhosting():Void 
+	{
+		untyped __cpp__('DisableProcessWindowsGhosting()');
+	}
+
+	/**
+    * Turns off that annoying "Report to Microsoft" dialog that pops up when the game/programm crashes.
+    */
+	public static function disableWindowsReport():Void
+	{
+		untyped __cpp__('SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);');
+	}
 }
 #else
-#error "SL-Windows-API supports only Windows platform"
+#error "SL-Windows-API supports only Windows(C++) platform"
 #end

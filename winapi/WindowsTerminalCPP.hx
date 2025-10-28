@@ -6,7 +6,7 @@ package winapi;
  * Author: Slushi
  */
 
-#if windows
+#if (cpp && windows)
 @:cppFileCode('
 #include <Windows.h>
 #include <windowsx.h>
@@ -215,5 +215,5 @@ class WindowsTerminalCPP
 	}
 }
 #else
-#error "SL-Windows-API supports only Windows platform"
+#error "SL-Windows-API supports only Windows(C++) platform"
 #end

@@ -8,7 +8,7 @@ import sys.io.Process;
  * 
  * Author: Slushi
  */
-#if windows
+#if (cpp && windows)
 enum abstract MessageBoxIcon(Int) {
 	var MSG_ERROR = 0x00000010;
 	var MSG_QUESTION = 0x00000020;
@@ -31,6 +31,14 @@ enum abstract MessageBoxType(Int) {
 class WindowsAPI {
 	public static function obtainRAM():Int {
 		return WindowsCPP.obtainRAM();
+	}
+
+	public static function disableWindowsGhosting() {
+		WindowsCPP.disableWindowsGhosting();
+	}
+
+	public static function disableWindowsReport() {
+		WindowsCPP.disableWindowsReport();
 	}
 
 	public static function screenCapture(path:String) {
@@ -212,6 +220,7 @@ class WindowsAPI {
 		allPath = allPath.split("\\").join("/");
 		setWallpaper(allPath);
 		changedWallpaper = true;
+
 		trace("Wallpaper changed to: " + allPath);
 	}
 
@@ -269,5 +278,5 @@ class WindowsAPI {
 	}
 }
 #else
-#error "SL-Windows-API supports only Windows platform"
+#error "SL-Windows-API supports only Windows(C++) platform"
 #end
