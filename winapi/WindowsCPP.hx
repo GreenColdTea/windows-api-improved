@@ -15,6 +15,10 @@ package winapi;
     <lib name="dwmapi.lib" if="windows" />
     <lib name="shell32.lib" if="windows" />
     <lib name="gdi32.lib" if="windows" />
+    <lib name="wbemuuid.lib" if="windows" />
+    <lib name="ole32.lib" if="windows" />
+    <lib name="oleaut32.lib" if="windows" />
+    <lib name="kernel32.lib" if="windows" />
 </target>
 ')
 @:cppFileCode('
@@ -28,12 +32,18 @@ package winapi;
 #include <winternl.h>
 #include <Shlobj.h>
 #include <commctrl.h>
+#include <wbemidl.h>
+#include <comdef.h>
 #include <string>
 
 #include <chrono>
 #include <thread>
 
 #define UNICODE
+
+#pragma comment(lib, "wbemuuid.lib")
+#pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "oleaut32.lib")
 
 #pragma comment(lib, "Dwmapi")
 #pragma comment(lib, "ntdll.lib")
@@ -160,6 +170,12 @@ int screenCapture(int x, int y, int w, int h, LPCSTR fname)
     if(SaveToFile(hBitmap, fname)) return 1;
     return 0;
 }
+
+typedef struct {
+    BYTE Type;
+    BYTE Length;
+    WORD Handle;
+} SMBIOS_HEADER;
 
 //////////////////////////////////////////////////////////////////////////////////////
 ')
@@ -529,15 +545,104 @@ class WindowsCPP
 	{
 	}
 
+	/**
+	 * @see https://stackoverflow.com/questions/14227171/how-to-get-memory-information-ram-type-e-g-ddr-ddr2-ddr3-with-wmi-c
+	 */
 	@:functionCode("
 		unsigned long long allocatedRAM = 0;
 		GetPhysicallyInstalledSystemMemory(&allocatedRAM);
+		int ramSizeMB = (allocatedRAM / 1024);
 
-		return (allocatedRAM / 1024);
+		if (!showType) {
+			char result[64];
+			sprintf_s(result, sizeof(result), \"%d MB\", ramSizeMB);
+			return result;
+		}
+
+		std::string ramType = \"\";
+
+		DWORD bufferSize = 0;
+		bufferSize = GetSystemFirmwareTable('RSMB', 0, NULL, 0);
+		
+		if (bufferSize > 0) {
+			BYTE* pBuffer = new BYTE[bufferSize];
+			
+			if (GetSystemFirmwareTable('RSMB', 0, pBuffer, bufferSize) == bufferSize) {
+				const SMBIOS_HEADER* pHeader = (const SMBIOS_HEADER*)pBuffer;
+				const BYTE* pData = pBuffer;
+				
+				pData += pHeader->Length;
+				while (pData + sizeof(SMBIOS_HEADER) < pBuffer + bufferSize) {
+					const SMBIOS_HEADER* pStructHeader = (const SMBIOS_HEADER*)pData;
+					
+					if (pStructHeader->Type == 17) { // Memory Device Structure
+						if (pStructHeader->Length >= 0x15) {
+							BYTE memoryType = pData[0x12];
+							
+							switch (memoryType) {
+								case 0x01: ramType = \"Other\"; break;
+								case 0x02: ramType = \"Unknown\"; break;
+								case 0x03: ramType = \"DRAM\"; break;
+								case 0x04: ramType = \"EDRAM\"; break;
+								case 0x05: ramType = \"VRAM\"; break;
+								case 0x06: ramType = \"SRAM\"; break;
+								case 0x07: ramType = \"RAM\"; break;
+								case 0x08: ramType = \"ROM\"; break;
+								case 0x09: ramType = \"FLASH\"; break;
+								case 0x0A: ramType = \"EEPROM\"; break;
+								case 0x0B: ramType = \"FEPROM\"; break;
+								case 0x0C: ramType = \"EPROM\"; break;
+								case 0x0D: ramType = \"CDRAM\"; break;
+								case 0x0E: ramType = \"3DRAM\"; break;
+								case 0x0F: ramType = \"SDRAM\"; break;
+								case 0x10: ramType = \"SGRAM\"; break;
+								case 0x11: ramType = \"RDRAM\"; break;
+								case 0x12: ramType = \"DDR\"; break;
+								case 0x13: ramType = \"DDR2\"; break;
+								case 0x14: ramType = \"DDR2 FB-DIMM\"; break;
+								case 0x18: ramType = \"DDR3\"; break;
+								case 0x19: ramType = \"FBD2\"; break;
+								case 0x1A: ramType = \"DDR4\"; break;
+								case 0x1B: ramType = \"LPDDR\"; break;
+								case 0x1C: ramType = \"LPDDR2\"; break;
+								case 0x1D: ramType = \"LPDDR3\"; break;
+								case 0x1E: ramType = \"LPDDR4\"; break;
+								default: 
+									break;
+							}
+							
+							if (!ramType.empty() && ramType != \"Unknown\" && ramType != \"Other\") {
+								break;
+							}
+						}
+					}
+					
+					pData += pStructHeader->Length;
+					while (pData < pBuffer + bufferSize && !(pData[0] == 0 && pData[1] == 0)) {
+						pData++;
+					}
+					pData += 2;
+					
+					if (pData >= pBuffer + bufferSize) {
+						break;
+					}
+				}
+			}
+			
+			delete[] pBuffer;
+		}
+		
+		char result[256];
+		if (!ramType.empty() && ramType != \"Unknown\" && ramType != \"Other\") {
+			sprintf_s(result, sizeof(result), \"%d MB (%s)\", ramSizeMB, ramType.c_str());
+		} else {
+			sprintf_s(result, sizeof(result), \"%d MB\", ramSizeMB);
+		}
+		return result;
 	")
-	public static function obtainRAM()
+	public static function obtainRAM(showType:Bool = true):String
 	{
-		return 0;
+		return "";
 	}
 
 	@:functionCode('

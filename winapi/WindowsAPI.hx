@@ -30,8 +30,15 @@ enum abstract MessageBoxType(Int) {
 
 class WindowsAPI {
 	public static function obtainRAM():Int {
-		return WindowsCPP.obtainRAM();
-	}
+        var ramString = WindowsCPP.obtainRAM(false);
+        var ramValue = Std.parseInt(ramString.split(" ")[0]);
+
+        return ramValue ?? 0;
+    }
+
+    public static function obtainRAMInfo(showType:Bool = true):String {
+        return WindowsCPP.obtainRAM(showType);
+    }
 
 	public static function disableWindowsGhosting() {
 		WindowsCPP.disableWindowsGhosting();
