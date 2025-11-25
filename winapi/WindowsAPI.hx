@@ -187,11 +187,11 @@ class WindowsAPI {
 	}
 
 	public static function getConsoleWindowWidth():Int {
-		return WindowsTerminalCPP.returnConsoleWindowWidth();
+		return WindowsTerminalCPP.getConsoleWindowWidth();
 	}
 
 	public static function getConsoleWindowHeight():Int {
-		return WindowsTerminalCPP.returnConsoleWindowHeight();
+		return WindowsTerminalCPP.getConsoleWindowHeight();
 	}
 
 	public static function setConsoleCursorPosition(x:Int, y:Int) {

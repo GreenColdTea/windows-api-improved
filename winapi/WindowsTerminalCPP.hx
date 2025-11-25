@@ -126,7 +126,7 @@ class WindowsTerminalCPP
 	}
 
 	@:functionCode('
-        COORD pos = {x, y};
+        COORD pos = {(SHORT)x, (SHORT)y};
         HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
         SetConsoleCursorPosition(output, pos);
     ')
@@ -135,11 +135,10 @@ class WindowsTerminalCPP
 	}
 
 	@:functionCode('
-        // Coño esta potente la IA eh?	
         HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
         CONSOLE_SCREEN_BUFFER_INFO screenBufferInfo;
         GetConsoleScreenBufferInfo(output, &screenBufferInfo);
-        return screenBufferInfo.dwCursorPosition.X;
+        return (int)screenBufferInfo.dwCursorPosition.X;
     ')
 	public static function getConsoleCursorPositionInX():Int
 	{
@@ -147,11 +146,10 @@ class WindowsTerminalCPP
 	}
 
 	@:functionCode('
-        // Coño esta potente la IA eh?	
         HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
         CONSOLE_SCREEN_BUFFER_INFO screenBufferInfo;
         GetConsoleScreenBufferInfo(output, &screenBufferInfo);
-        return screenBufferInfo.dwCursorPosition.Y;
+        return (int)screenBufferInfo.dwCursorPosition.Y;
     ')
 	public static function getConsoleCursorPositionInY():Int
 	{
@@ -162,16 +160,25 @@ class WindowsTerminalCPP
         HWND hwnd = GetConsoleWindow();
         SetWindowPos(hwnd, NULL, posX, NULL, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     ')
-	public static function setConsoleWindowPositionX(posX:Int):Int
+	public static function setConsoleWindowPositionX(posX:Int)
 	{
-		return 0;
 	}
 
 	@:functionCode('
         HWND hwnd = GetConsoleWindow();
         SetWindowPos(hwnd, NULL, NULL, posY, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     ')
-	public static function setConsoleWindowPositionY(posY:Int):Int
+	public static function setConsoleWindowPositionY(posY:Int)
+	{
+	}
+
+	@:functionCode('
+        HWND hwnd = GetConsoleWindow();
+		RECT rect;
+		GetWindowRect(hwnd, &rect);
+		return (int)(rect.right - rect.left);
+	')
+	public static function getConsoleWindowWidth():Int
 	{
 		return 0;
 	}
@@ -179,14 +186,10 @@ class WindowsTerminalCPP
 	@:functionCode('
         HWND hwnd = GetConsoleWindow();
 		RECT rect;
-
 		GetWindowRect(hwnd, &rect);
-
-		int x = rect.left;
-
-		return x;
+		return (int)(rect.bottom - rect.top);
 	')
-	public static function returnConsoleWindowWidth():Int
+	public static function getConsoleWindowHeight():Int
 	{
 		return 0;
 	}
@@ -194,14 +197,21 @@ class WindowsTerminalCPP
 	@:functionCode('
         HWND hwnd = GetConsoleWindow();
 		RECT rect;
-
 		GetWindowRect(hwnd, &rect);
-
-		int y = rect.top;
-
-		return y;
+		return (int)rect.left;
 	')
-	public static function returnConsoleWindowHeight():Int
+	public static function getConsoleWindowPositionX():Int
+	{
+		return 0;
+	}
+
+	@:functionCode('
+        HWND hwnd = GetConsoleWindow();
+		RECT rect;
+		GetWindowRect(hwnd, &rect);
+		return (int)rect.top;
+	')
+	public static function getConsoleWindowPositionY():Int
 	{
 		return 0;
 	}
