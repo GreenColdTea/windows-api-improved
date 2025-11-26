@@ -260,7 +260,7 @@ class WindowsCPP
 			WS_EX_DLGMODALFRAME,
 			className,
 			wCaption,
-			WS_POPUP | WS_CAPTION | WS_SYSMENU, // Removed WS_SIZEBOX and WS_MAXIMIZEBOX
+			WS_POPUP | WS_CAPTION | WS_SYSMENU,
 			CW_USEDEFAULT, CW_USEDEFAULT, 800, 800,
 			hwnd,
 			NULL,
