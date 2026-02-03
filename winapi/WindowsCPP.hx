@@ -19,6 +19,7 @@ package winapi;
     <lib name="ole32.lib" if="windows" />
     <lib name="oleaut32.lib" if="windows" />
     <lib name="kernel32.lib" if="windows" />
+	<lib name="advapi32.lib" if="windows" />
 </target>
 ')
 @:cppFileCode('
@@ -607,7 +608,28 @@ class WindowsCPP
 								case 0x1C: ramType = \"LPDDR2\"; break;
 								case 0x1D: ramType = \"LPDDR3\"; break;
 								case 0x1E: ramType = \"LPDDR4\"; break;
+								case 0x1F: ramType = \"DDR5\"; break;
+								case 0x20: ramType = \"LPDDR5\"; break;
+								case 0x21: ramType = \"LPDDR5X\"; break;
+								case 0x22: ramType = \"DDR6\"; break;
+								case 0x23: ramType = \"LPDDR6\"; break;
+								case 0x24: ramType = \"HBM\"; break;
+								case 0x25: ramType = \"HBM2\"; break;
+								case 0x26: ramType = \"HBM2E\"; break;
+								case 0x27: ramType = \"HBM3\"; break;
+								case 0x28: ramType = \"GDDR\"; break;
+								case 0x29: ramType = \"GDDR2\"; break;
+								case 0x2A: ramType = \"GDDR3\"; break;
+								case 0x2B: ramType = \"GDDR4\"; break;
+								case 0x2C: ramType = \"GDDR5\"; break;
+								case 0x2D: ramType = \"GDDR5X\"; break;
+								case 0x2E: ramType = \"GDDR6\"; break;
+								case 0x2F: ramType = \"GDDR6X\"; break;
+								case 0x30: ramType = \"GDDR7\"; break; // future thingie
 								default: 
+									char unknownType[16];
+									sprintf_s(unknownType, sizeof(unknownType), \"Unknown (0x%02X)\", memoryType);
+									ramType = unknownType;
 									break;
 							}
 							
