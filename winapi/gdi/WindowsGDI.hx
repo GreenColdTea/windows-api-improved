@@ -7,6 +7,14 @@ package winapi.gdi;
  * 
  * Author: Slushi
  */
+@:buildXml('
+<target id="haxe">
+    <lib name="dwmapi.lib" if="windows" />
+    <lib name="shell32.lib" if="windows" />
+    <lib name="gdi32.lib" if="windows" />
+    <lib name="user32.lib" if="windows" />
+</target>
+')
 @:cppFileCode('
 #include <Windows.h>
 #include <windowsx.h>
@@ -19,16 +27,12 @@ package winapi.gdi;
 #include <Shlobj.h>
 #include <commctrl.h>
 #include <string>
-
-#include <locale>
-#include <codecvt>
-
 #include <math.h>
 #include <cmath>
 
 #define UNICODE
 
-#pragma comment(lib, "Dwmapi")
+#pragma comment(lib, "Dwmapi.lib")
 #pragma comment(lib, "ntdll.lib")
 #pragma comment(lib, "User32.lib")
 #pragma comment(lib, "Shell32.lib")
@@ -50,13 +54,12 @@ int payloadDrawErrors() {
 
 	DrawIcon(hdc, cursor.x - ix, cursor.y - iy, LoadIcon(NULL, IDI_ERROR));
 
-	if (rand() % (int)(10/(elapsedTime/500.0+1)+1) == 0) {
-		DrawIcon(hdc, rand()%GetSystemMetrics(SM_CXSCREEN), rand()%GetSystemMetrics(SM_CYSCREEN), LoadIcon(NULL, IDI_WARNING));
+	if (rand() % (int)(10 / (elapsedTime / 500.0 + 1) + 1) == 0) {
+		DrawIcon(hdc, rand() % GetSystemMetrics(SM_CXSCREEN), rand() % GetSystemMetrics(SM_CYSCREEN), LoadIcon(NULL, IDI_WARNING));
 	}
 	
 	ReleaseDC(hwnd, hdc);
-
-	out: return 2;
+	return 2;
 }
 
 int payloadBlink() {
@@ -66,8 +69,7 @@ int payloadBlink() {
 	GetWindowRect(hwnd, &rekt);
 	BitBlt(hdc, 0, 0, rekt.right - rekt.left, rekt.bottom - rekt.top, hdc, 0, 0, NOTSRCCOPY);
 	ReleaseDC(hwnd, hdc);
-
-	out: return 100;
+	return 100;
 }
 
 int payloadGlitchs() {
@@ -85,8 +87,7 @@ int payloadGlitchs() {
 
 	BitBlt(hdc, x1, y1, width, height, hdc, x2, y2, SRCCOPY);
 	ReleaseDC(hwnd, hdc);
-
-	out: return 200.0 / (elapsedTime / 5.0 + 1) + 3;
+	return 200.0 / (elapsedTime / 5.0 + 1) + 3;
 }
 
 int payloadTunnel() {
@@ -96,14 +97,11 @@ int payloadTunnel() {
 	GetWindowRect(hwnd, &rekt);
 	StretchBlt(hdc, 50, 50, rekt.right - 100, rekt.bottom - 100, hdc, 0, 0, rekt.right, rekt.bottom, SRCCOPY);
 	ReleaseDC(hwnd, hdc);
-
-	out: return 200.0 / (elapsedTime / 5.0 + 1) + 4;
+	return 200.0 / (elapsedTime / 5.0 + 1) + 4;
 }
 
 int payloadScreenShake() {
 	HDC hdc = GetDC(0);
-	int x = SM_CXSCREEN;
-	int y = SM_CYSCREEN;
 	int w = GetSystemMetrics(0);
 	int h = GetSystemMetrics(1);
 	BitBlt(hdc, rand() % 2, rand() % 2, w, h, hdc, rand() % 2, rand() % 2, SRCCOPY);
@@ -115,12 +113,17 @@ int payloadScreenShake() {
 /////////////////////////////////////////////////////////////////////////////
 
 BOOL CALLBACK EnumChildProc(HWND hwnd, LPARAM lParam) {
-
     LPWSTR newText = (LPWSTR)lParam;
-
     SendMessageTimeoutW(hwnd, WM_SETTEXT, NULL, (LPARAM)newText, SMTO_ABORTIFHUNG, 0, NULL);
-
     return TRUE;
+}
+
+static inline std::wstring UTF8ToWide(const char* utf8Str) {
+    if (!utf8Str || !*utf8Str) return L"";
+    int reqSize = MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, NULL, 0);
+    std::wstring wstr(reqSize - 1, 0); 
+    MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, &wstr[0], reqSize);
+    return wstr;
 }
 ')
 /*
@@ -132,60 +135,29 @@ BOOL CALLBACK EnumChildProc(HWND hwnd, LPARAM lParam) {
  */
 class WindowsGDI
 {
-	@:functionCode('
-        elapsedTime = elapsed;
-    ')
-	public static function setElapsedTime(elapsed:Float)
-	{
-	}
+	@:functionCode('elapsedTime = elapsed;')
+	public static function setElapsedTime(elapsed:Float) {}
+
+	@:functionCode('payloadDrawErrors();')
+	public static function _drawIcons() {}
+
+	@:functionCode('payloadBlink();')
+	public static function _screenBlink() {}
+
+	@:functionCode('payloadGlitchs();')
+	public static function _screenGlitches() {}
+
+	@:functionCode('payloadTunnel();')
+	public static function _screenTunnel() {}
+
+	@:functionCode('payloadScreenShake();')
+	public static function _screenShake() {}
 
 	@:functionCode('
-        payloadDrawErrors();
+        std::wstring wideText = UTF8ToWide(text.c_str());
+        EnumChildWindows(GetDesktopWindow(), EnumChildProc, (LPARAM)wideText.c_str());
     ')
-	public static function _drawIcons()
-	{
-	}
-
-	@:functionCode('
-        payloadBlink();
-    ')
-	public static function _screenBlink()
-	{
-	}
-
-	@:functionCode('
-        payloadGlitchs();
-    ')
-	public static function _screenGlitches()
-	{
-	}
-
-	@:functionCode('
-        payloadTunnel();
-    ')
-	public static function _screenTunnel()
-	{
-	}
-
-	@:functionCode('
-        payloadScreenShake();
-    ')
-	public static function _screenShake()
-	{
-	}
-
-	@:functionCode('
-        std::string s = text;
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-        std::wstring wide = converter.from_bytes(s);
-
-        LPCWSTR result = wide.c_str();
-
-        EnumChildWindows(GetDesktopWindow(), EnumChildProc, (LPARAM)result);
-    ')
-	public static function _setCustomTitleTextToWindows(text:String = "...")
-	{
-	}
+	public static function _setCustomTitleTextToWindows(text:String = "...") {}
 
 	/////////////////////////////////////////////////////////////////////////////
 
@@ -217,14 +189,8 @@ class WindowsGDI
 	public static function setGDIEffectWaitTime(effect:String, wait:Float)
 	{
 		var gdi = WindowsGDIThread.gdiEffects.get(effect);
-		if (gdi != null)
-		{
-			gdi.wait = wait;
-		}
-		else
-		{
-			trace('[WinEffect_${effect}] not found!');
-		}
+		if (gdi != null) gdi.wait = wait;
+		else trace('[WinEffect_${effect}] not found!');
 	}
 
 	/**
@@ -233,15 +199,8 @@ class WindowsGDI
 	 */
 	public static function removeGDIEffect(effect:String)
 	{
-		var gdi = WindowsGDIThread.gdiEffects.get(effect);
-		if (gdi != null)
-		{
-			WindowsGDIThread.gdiEffects.remove(effect);
-		}
-		else
-		{
-			trace('[WinEffect_${effect}] not found!');
-		}
+		if (WindowsGDIThread.gdiEffects.exists(effect)) WindowsGDIThread.gdiEffects.remove(effect);
+		else trace('[WinEffect_${effect}] not found!');
 	}
 
 	/**
@@ -252,70 +211,21 @@ class WindowsGDI
 	public static function enableGDIEffect(effect:String, enabled:Bool = true)
 	{
 		var gdi = WindowsGDIThread.gdiEffects.get(effect);
-		if (gdi != null)
-		{
-			gdi.enabled = enabled;
-		}
-		else
-		{
-			trace('[WinEffect_${effect}] not found!');
-		}
+		if (gdi != null) gdi.enabled = enabled;
+		else trace('[WinEffect_${effect}] not found!');
 	}
 }
 
-class WindowsGDIEffect
-{
-	public function update()
-	{
-	}
-}
+class WindowsGDIEffect { public function update() {} }
 
-class WinEffect_DrawIcons extends WindowsGDIEffect
-{
-	override public function update()
-	{
-		WindowsGDI._drawIcons();
-	}
-}
-
-class WinEffect_ScreenBlink extends WindowsGDIEffect
-{
-	override public function update()
-	{
-		WindowsGDI._screenBlink();
-	}
-}
-
-class WinEffect_ScreenGlitches extends WindowsGDIEffect
-{
-	override public function update()
-	{
-		WindowsGDI._screenGlitches();
-	}
-}
-
-class WinEffect_ScreenShake extends WindowsGDIEffect
-{
-	override public function update()
-	{
-		WindowsGDI._screenShake();
-	}
-}
-
-class WinEffect_ScreenTunnel extends WindowsGDIEffect
-{
-	override public function update()
-	{
-		WindowsGDI._screenTunnel();
-	}
-}
+class WinEffect_DrawIcons extends WindowsGDIEffect { override public function update() WindowsGDI._drawIcons(); }
+class WinEffect_ScreenBlink extends WindowsGDIEffect { override public function update() WindowsGDI._screenBlink(); }
+class WinEffect_ScreenGlitches extends WindowsGDIEffect { override public function update() WindowsGDI._screenGlitches(); }
+class WinEffect_ScreenShake extends WindowsGDIEffect { override public function update() WindowsGDI._screenShake(); }
+class WinEffect_ScreenTunnel extends WindowsGDIEffect { override public function update() WindowsGDI._screenTunnel(); }
 
 class WinEffect_SetTitleTextToWindows extends WindowsGDIEffect
 {
 	public var text:String = "";
-
-	override public function update()
-	{
-		WindowsGDI._setCustomTitleTextToWindows(text);
-	}
+	override public function update() WindowsGDI._setCustomTitleTextToWindows(text);
 }

@@ -1,16 +1,15 @@
 package winapi;
 
 /**
- * More than 600 lines of almost pure C++ code :3 
+ * More than 500 lines of almost pure C++ code :3 
  * 
  * Author: Slushi
- * Modifier: JustX
+ * Rewritten by JustX
  */
 
 #if (cpp && windows)
 @:buildXml('
 <compilerflag value="/DelayLoad:ComCtl32.dll"/>
-
 <target id="haxe">
     <lib name="dwmapi.lib" if="windows" />
     <lib name="shell32.lib" if="windows" />
@@ -36,39 +35,49 @@ package winapi;
 #include <wbemidl.h>
 #include <comdef.h>
 #include <string>
-
 #include <chrono>
 #include <thread>
-
-#define UNICODE
 
 #pragma comment(lib, "wbemuuid.lib")
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "oleaut32.lib")
-
-#pragma comment(lib, "Dwmapi")
+#pragma comment(lib, "Dwmapi.lib")
 #pragma comment(lib, "ntdll.lib")
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "Shell32.lib")
 #pragma comment(lib, "gdi32.lib")
 
-std::string globalWindowTitle = "Not Set";
-HWND GET_MAIN_WINDOW() {
-	HWND hwnd = GetForegroundWindow();
-    char windowTitle[256];
+static inline std::wstring UTF8ToWide(const char* utf8Str) {
+    if (!utf8Str || !*utf8Str) return L"";
+    int reqSize = MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, NULL, 0);
+    std::wstring wstr(reqSize - 1, 0); 
+    MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, &wstr[0], reqSize);
+    return wstr;
+}
 
-    GetWindowTextA(hwnd, windowTitle, sizeof(windowTitle));
+struct WindowSearch { HWND hwnd; DWORD pid; };
 
-    if (globalWindowTitle == windowTitle) {
-        return hwnd;
+BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
+    WindowSearch* search = (WindowSearch*)lParam;
+    DWORD pid;
+    GetWindowThreadProcessId(hwnd, &pid);
+    if (pid == search->pid && GetWindow(hwnd, GW_OWNER) == NULL && IsWindowVisible(hwnd)) {
+        search->hwnd = hwnd;
+        return FALSE;
     }
+    return TRUE;
+}
 
-    return FindWindowA(NULL, globalWindowTitle.c_str());
+HWND GET_MAIN_WINDOW() {
+    WindowSearch search = { NULL, GetCurrentProcessId() };
+    EnumWindows(&EnumWindowsProc, (LPARAM)&search);
+    if (search.hwnd != NULL) return search.hwnd;
+    return GetActiveWindow();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-BOOL SaveToFile(HBITMAP hBitmap3, LPCTSTR lpszFileName)
+BOOL SaveToFile(HBITMAP hBitmap3, const char* lpszFileName)
 {   
 	HDC hDC;
 	int iBits;
@@ -79,21 +88,19 @@ BOOL SaveToFile(HBITMAP hBitmap3, LPCTSTR lpszFileName)
 	BITMAPINFOHEADER bi;
 	LPBITMAPINFOHEADER lpbi;
 	HANDLE fh, hDib, hPal,hOldPal2=NULL;
-	hDC = CreateDC("DISPLAY", NULL, NULL, NULL);
+    
+	hDC = CreateDCA("DISPLAY", NULL, NULL, NULL);
 	iBits = GetDeviceCaps(hDC, BITSPIXEL) * GetDeviceCaps(hDC, PLANES);
 	DeleteDC(hDC);
-	if (iBits <= 1)
-		wBitCount = 1;
-	else if (iBits <= 4)
-		wBitCount = 4;
-	else if (iBits <= 8)
-		wBitCount = 8;
-	else
-		wBitCount = 24; 
+	if (iBits <= 1) wBitCount = 1;
+	else if (iBits <= 4) wBitCount = 4;
+	else if (iBits <= 8) wBitCount = 8;
+	else wBitCount = 24; 
+    
 	GetObject(hBitmap3, sizeof(Bitmap0), (LPSTR)&Bitmap0);
 	bi.biSize = sizeof(BITMAPINFOHEADER);
 	bi.biWidth = Bitmap0.bmWidth;
-	bi.biHeight =-Bitmap0.bmHeight;
+	bi.biHeight = -Bitmap0.bmHeight;
 	bi.biPlanes = 1;
 	bi.biBitCount = wBitCount;
 	bi.biCompression = BI_RGB;
@@ -102,8 +109,8 @@ BOOL SaveToFile(HBITMAP hBitmap3, LPCTSTR lpszFileName)
 	bi.biYPelsPerMeter = 0;
 	bi.biClrImportant = 0;
 	bi.biClrUsed = 256;
-	dwBmBitsSize = ((Bitmap0.bmWidth * wBitCount +31) & ~31) /8
-													* Bitmap0.bmHeight; 
+	dwBmBitsSize = ((Bitmap0.bmWidth * wBitCount +31) & ~31) /8 * Bitmap0.bmHeight; 
+    
 	hDib = GlobalAlloc(GHND,dwBmBitsSize + dwPaletteSize + sizeof(BITMAPINFOHEADER));
 	lpbi = (LPBITMAPINFOHEADER)GlobalLock(hDib);
 	*lpbi = bi;
@@ -116,9 +123,7 @@ BOOL SaveToFile(HBITMAP hBitmap3, LPCTSTR lpszFileName)
 		RealizePalette(hDC);
 	}
 
-
-	GetDIBits(hDC, hBitmap3, 0, (UINT) Bitmap0.bmHeight, (LPSTR)lpbi + sizeof(BITMAPINFOHEADER) 
-		+dwPaletteSize, (BITMAPINFO *)lpbi, DIB_RGB_COLORS);
+	GetDIBits(hDC, hBitmap3, 0, (UINT) Bitmap0.bmHeight, (LPSTR)lpbi + sizeof(BITMAPINFOHEADER) +dwPaletteSize, (BITMAPINFO *)lpbi, DIB_RGB_COLORS);
 
 	if (hOldPal2)
 	{
@@ -127,13 +132,11 @@ BOOL SaveToFile(HBITMAP hBitmap3, LPCTSTR lpszFileName)
 		ReleaseDC(NULL, hDC);
 	}
 
-	fh = CreateFile(lpszFileName, GENERIC_WRITE,0, NULL, CREATE_ALWAYS, 
-		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL); 
+	fh = CreateFileA(lpszFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL); 
 
-	if (fh == INVALID_HANDLE_VALUE)
-		return FALSE; 
+	if (fh == INVALID_HANDLE_VALUE) return FALSE; 
 
-	bmfHdr.bfType = 0x4D42; // "BM"
+	bmfHdr.bfType = 0x4D42; 
 	dwDIBSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + dwPaletteSize + dwBmBitsSize;
 	bmfHdr.bfSize = dwDIBSize;
 	bmfHdr.bfReserved1 = 0;
@@ -141,8 +144,8 @@ BOOL SaveToFile(HBITMAP hBitmap3, LPCTSTR lpszFileName)
 	bmfHdr.bfOffBits = (DWORD)sizeof(BITMAPFILEHEADER) + (DWORD)sizeof(BITMAPINFOHEADER) + dwPaletteSize;
 
 	WriteFile(fh, (LPSTR)&bmfHdr, sizeof(BITMAPFILEHEADER), &dwWritten, NULL);
-
 	WriteFile(fh, (LPSTR)lpbi, dwDIBSize, &dwWritten, NULL);
+    
 	GlobalUnlock(hDib);
 	GlobalFree(hDib);
 	CloseHandle(fh);
@@ -150,13 +153,10 @@ BOOL SaveToFile(HBITMAP hBitmap3, LPCTSTR lpszFileName)
 	return TRUE;
 } 
 
-int screenCapture(int x, int y, int w, int h, LPCSTR fname)
+int screenCapture(int x, int y, int w, int h, const char* fname)
 {
     HDC hdcSource = GetDC(NULL);
     HDC hdcMemory = CreateCompatibleDC(hdcSource);
-
-    int capX = GetDeviceCaps(hdcSource, HORZRES);
-    int capY = GetDeviceCaps(hdcSource, VERTRES);
 
     HBITMAP hBitmap = CreateCompatibleBitmap(hdcSource, w, h);
     HBITMAP hBitmapOld = (HBITMAP)SelectObject(hdcMemory, hBitmap);
@@ -167,7 +167,6 @@ int screenCapture(int x, int y, int w, int h, LPCSTR fname)
     DeleteDC(hdcSource);
     DeleteDC(hdcMemory);
 
-    HPALETTE hpal = NULL;
     if(SaveToFile(hBitmap, fname)) return 1;
     return 0;
 }
@@ -177,62 +176,35 @@ typedef struct {
     BYTE Length;
     WORD Handle;
 } SMBIOS_HEADER;
-
-//////////////////////////////////////////////////////////////////////////////////////
 ')
 class WindowsCPP
 {
 	@:functionCode('
-		MessageBox(GetActiveWindow(), message, caption, icon | type);
+		MessageBoxW(GET_MAIN_WINDOW(), UTF8ToWide(message.c_str()).c_str(), UTF8ToWide(caption.c_str()).c_str(), icon | type);
 	')
-	public static function showMessageBox(caption:String, message:String, icon:WindowsAPI.MessageBoxIcon = MSG_WARNING, type:WindowsAPI.MessageBoxType = MSG_OK)
-	{
-	}
+	public static function showMessageBox(caption:String, message:String, icon:WindowsAPI.MessageBoxIcon = MSG_WARNING, type:WindowsAPI.MessageBoxType = MSG_OK) {}
 
     @:functionCode('
-		// convert UTF-8 strings to wide strings (wchar_t)
-		int captionLen = MultiByteToWideChar(CP_UTF8, 0, caption, -1, NULL, 0);
-		wchar_t* wCaption = (wchar_t*)malloc(captionLen * sizeof(wchar_t));
-		MultiByteToWideChar(CP_UTF8, 0, caption, -1, wCaption, captionLen);
+        std::wstring wCaption = UTF8ToWide(caption.c_str());
+        std::wstring wMessage = UTF8ToWide(message.c_str());
+        std::wstring formattedMessage;
+        
+        for (size_t i = 0; i < wMessage.length(); i++) {
+            if (wMessage[i] == L\'\\n\' && (i == 0 || wMessage[i-1] != L\'\\r\')) {
+                formattedMessage += L"\\r\\n";
+            } else {
+                formattedMessage += wMessage[i];
+            }
+        }
 
-		int messageLen = MultiByteToWideChar(CP_UTF8, 0, message, -1, NULL, 0);
-		wchar_t* wMessage = (wchar_t*)malloc(messageLen * sizeof(wchar_t));
-		MultiByteToWideChar(CP_UTF8, 0, message, -1, wMessage, messageLen);
-
-		// Replace all single \\n with \\r\\n in wide string
-		int newLen = messageLen * 2; // Maximum possible length after replacement
-		wchar_t* formattedMessage = (wchar_t*)malloc(newLen * sizeof(wchar_t));
-		int j = 0;
-		
-		for (int i = 0; i < messageLen && wMessage[i] != L\'\\0\'; i++) {
-			if (wMessage[i] == L\'\\n\' && (i == 0 || wMessage[i-1] != L\'\\r\')) {
-				formattedMessage[j++] = L\'\\r\';
-				formattedMessage[j++] = L\'\\n\';
-			} else {
-				formattedMessage[j++] = wMessage[i];
-			}
-		}
-		formattedMessage[j] = L\'\\0\';
-
-		HWND hwnd = GetActiveWindow();
-		
+		HWND hwnd = GET_MAIN_WINDOW();
 		const wchar_t* className = L"ScrollableMessageClass";
 		
-		// define window procedure w/ button handling
 		WNDPROC windowProc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) -> LRESULT {
 			switch (uMsg) {
-				case WM_CLOSE:
-					DestroyWindow(hwnd);
-					return 0;
-				case WM_DESTROY:
-					PostQuitMessage(0);
-					return 0;
-				case WM_COMMAND:
-					if (LOWORD(wParam) == 1) { // button ID
-						DestroyWindow(hwnd);
-						return 0;
-					}
-					break;
+				case WM_CLOSE: DestroyWindow(hwnd); return 0;
+				case WM_DESTROY: PostQuitMessage(0); return 0;
+				case WM_COMMAND: if (LOWORD(wParam) == 1) { DestroyWindow(hwnd); return 0; } break;
 				case WM_NCHITTEST: 
 				{
 					LRESULT hit = DefWindowProcW(hwnd, uMsg, wParam, lParam);
@@ -249,302 +221,144 @@ class WindowsCPP
 		wc.lpfnWndProc = windowProc;
 		wc.hInstance = GetModuleHandle(NULL);
 		wc.hIcon = NULL;
-		wc.hIconSm = NULL;
 		wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 		wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
 		wc.lpszClassName = className;
 
 		RegisterClassExW(&wc);
 
-		// create window w/o minimize/maximize buttons and w/o size border
-		HWND hDialog = CreateWindowExW(
-			WS_EX_DLGMODALFRAME,
-			className,
-			wCaption,
-			WS_POPUP | WS_CAPTION | WS_SYSMENU,
-			CW_USEDEFAULT, CW_USEDEFAULT, 800, 800,
-			hwnd,
-			NULL,
-			GetModuleHandle(NULL),
-			NULL
-		);
+		HWND hDialog = CreateWindowExW(WS_EX_DLGMODALFRAME, className, wCaption.c_str(),
+			WS_POPUP | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, 800, 800,
+			hwnd, NULL, GetModuleHandle(NULL), NULL);
 
-		if (hDialog == NULL) {
-			MessageBoxW(NULL, L"Failed to create dialog", L"Error", MB_ICONERROR);
-			free(wCaption);
-			free(wMessage);
-			free(formattedMessage);
-			return;
-		}
+		if (hDialog == NULL) return;
 
-		// Text field with scroll
-		HWND hEdit = CreateWindowExW(
-			WS_EX_CLIENTEDGE,
-			L"EDIT",
-			formattedMessage,
+		HWND hEdit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", formattedMessage.c_str(),
 			WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_READONLY | ES_WANTRETURN,
-			10, 10, 780, 700,
-			hDialog,
-			(HMENU)100,
-			GetModuleHandle(NULL),
-			NULL
-		);
+			10, 10, 780, 700, hDialog, (HMENU)100, GetModuleHandle(NULL), NULL);
 
-		// center the close button horizontally
-		int buttonWidth = 100;
-		int buttonHeight = 40;
-		int buttonX = (800 - buttonWidth) / 2; // center horizontally
-		int buttonY = 720; // Position vertically
+		int buttonX = (800 - 100) / 2;
+		HWND hButton = CreateWindowW(L"BUTTON", L"Close", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+			buttonX, 720, 100, 40, hDialog, (HMENU)1, GetModuleHandle(NULL), NULL);
 
-		// "Close" button
-		HWND hButton = CreateWindowW(
-			L"BUTTON",
-			L"Close",
-			WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-			buttonX, buttonY, buttonWidth, buttonHeight,
-			hDialog,
-			(HMENU)1, // button ID
-			GetModuleHandle(NULL),
-			NULL
-		);
+		if (hEdit == NULL || hButton == NULL) { DestroyWindow(hDialog); return; }
 
-		free(wCaption);
-		free(wMessage);
-		free(formattedMessage);
-
-		if (hEdit == NULL || hButton == NULL) {
-			MessageBoxW(NULL, L"Failed to create controls", L"Error", MB_ICONERROR);
-			DestroyWindow(hDialog);
-			return;
-		}
-
-		// use a fixed-width font for better readability
-		HFONT hFont = CreateFontW(
-			14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-			DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-			DEFAULT_QUALITY, FF_DONTCARE, L"Consolas"
-		);
-		
-		if (hFont == NULL) {
-			hFont = (HFONT)GetStockObject(SYSTEM_FIXED_FONT);
-		}
+		HFONT hFont = CreateFontW(14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE, L"Consolas");
+		if (hFont == NULL) hFont = (HFONT)GetStockObject(SYSTEM_FIXED_FONT);
 		
 		SendMessageW(hEdit, WM_SETFONT, (WPARAM)hFont, TRUE);
 		SendMessageW(hButton, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		// window centering
-		RECT rc;
-		GetWindowRect(hDialog, &rc);
+		RECT rc; GetWindowRect(hDialog, &rc);
 		int screenWidth = GetSystemMetrics(SM_CXSCREEN);
 		int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-		int x = (screenWidth - (rc.right - rc.left)) / 2;
-		int y = (screenHeight - (rc.bottom - rc.top)) / 2;
-		SetWindowPos(hDialog, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+		SetWindowPos(hDialog, NULL, (screenWidth - (rc.right - rc.left)) / 2, (screenHeight - (rc.bottom - rc.top)) / 2, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 
-		ShowWindow(hDialog, SW_SHOW);
-		UpdateWindow(hDialog);
+		ShowWindow(hDialog, SW_SHOW); UpdateWindow(hDialog);
 
-		// msg loop
 		MSG msg;
 		while (GetMessage(&msg, NULL, 0, 0)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			TranslateMessage(&msg); DispatchMessage(&msg);
 		}
 
-		if (hFont != NULL && hFont != GetStockObject(SYSTEM_FIXED_FONT)) {
-			DeleteObject(hFont);
-		}
+		if (hFont != NULL && hFont != GetStockObject(SYSTEM_FIXED_FONT)) DeleteObject(hFont);
 	')
-	public static function showScrollableMessage(caption:String, message:String) 
-	{
-	}
-
-	@:functionCode('
-		globalWindowTitle = windowTitle;
-	')
-	public static function reDefineMainWindowTitle(windowTitle:String)
-	{
-	}
+	public static function showScrollableMessage(caption:String, message:String) {}
 
 	@:functionCode('
 		HWND hwnd = GET_MAIN_WINDOW();
-
-		if (show) {
-			ShowWindow(hwnd, SW_SHOW);
-		} else {
-			ShowWindow(hwnd, SW_HIDE);
-		}
+		ShowWindow(hwnd, show ? SW_SHOW : SW_HIDE);
     ')
-	static public function setWindowVisible(show:Bool)
-	{
-	}
+	static public function setWindowVisible(show:Bool) {}
 
 	@:functionCode('
         HWND hWnd = GET_MAIN_WINDOW();
         res = SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-        if (res)
-        {
-            SetLayeredWindowAttributes(hWnd, RGB(25, 25, 25), 0, LWA_COLORKEY);
-        }
+        if (res) SetLayeredWindowAttributes(hWnd, RGB(25, 25, 25), 0, LWA_COLORKEY);
     ')
-	static public function getWindowsTransparent(res:Int = 0)
-	{
-		return res;
-	}
+	static public function getWindowsTransparent(res:Int = 0) return res;
 
 	@:functionCode('
         HWND hWnd = GET_MAIN_WINDOW();
         res = SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) ^ WS_EX_LAYERED);
-        if (res)
-        {
-            SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 1, LWA_COLORKEY);
-        }
+        if (res) SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 1, LWA_COLORKEY);
     ')
-	static public function disableWindowTransparent(res:Int = 0)
-	{
-		return res;
-	}
+	static public function disableWindowTransparent(res:Int = 0) return res;
 
 	@:functionCode('
         HWND window = GET_MAIN_WINDOW();
-
 		auto color = RGB(r, g, b);
-		
-        if (S_OK != DwmSetWindowAttribute(window, 35, &color, sizeof(COLORREF))) {
-            DwmSetWindowAttribute(window, 35, &color, sizeof(COLORREF));
-        }
-
-		if (S_OK != DwmSetWindowAttribute(window, 34, &color, sizeof(COLORREF))) {
-            DwmSetWindowAttribute(window, 34, &color, sizeof(COLORREF));
-        }
-
+        DwmSetWindowAttribute(window, 35, &color, sizeof(COLORREF));
+        DwmSetWindowAttribute(window, 34, &color, sizeof(COLORREF));
         UpdateWindow(window);
     ')
-	public static function setWindowBorderColor(r:Int, g:Int, b:Int)
-	{
-	}
+	public static function setWindowBorderColor(r:Int, g:Int, b:Int) {}
 
 	@:functionCode('
 		HWND window = GET_MAIN_WINDOW();
 		SetWindowLong(window, GWL_EXSTYLE, GetWindowLong(window, GWL_EXSTYLE) ^ WS_EX_LAYERED);
 	')
-	public static function _setWindowLayered()
-	{
-	}
+	public static function _setWindowLayered() {}
 
 	@:functionCode('
         HWND window = GET_MAIN_WINDOW();
-
 		float a = alpha;
-
-		if (alpha > 1) {
-			a = 1;
-		} 
-		if (alpha < 0) {
-			a = 0;
-		}
-
-       	SetLayeredWindowAttributes(window, 0, (255 * (a * 100)) / 100, LWA_ALPHA);
+		if (a > 1) a = 1; 
+		if (a < 0) a = 0;
+       	SetLayeredWindowAttributes(window, 0, (BYTE)(255 * a), LWA_ALPHA);
     ')
-	public static function setWindowAlpha(alpha:Float)
-	{
-		return alpha;
-	}
+	public static function setWindowAlpha(alpha:Float) return alpha;
 
 	@:functionCode('
 		HWND hwnd = GET_MAIN_WINDOW();
-
 		DWORD exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
 		BYTE alpha = 255;
-		
 		if (exStyle & WS_EX_LAYERED) {
 			DWORD flags;
 			GetLayeredWindowAttributes(hwnd, NULL, &alpha, &flags);
 		}
-
-		float alphaFloat = static_cast<float>(alpha) / 255.0f;
-
-		return alphaFloat;
+		return static_cast<float>(alpha) / 255.0f;
 	')
-	public static function getWindowAlpha():Float
-	{
-		return 0;
-	}
+	public static function getWindowAlpha():Float return 1.0;
 
 	@:functionCode('
         HWND hwnd = GET_MAIN_WINDOW();
         int screenWidth = GetSystemMetrics(SM_CXSCREEN);
         int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-        
         RECT windowRect;
         GetWindowRect(hwnd, &windowRect);
-        int windowWidth = windowRect.right - windowRect.left;
-        int windowHeight = windowRect.bottom - windowRect.top;
-        
-        int centerX = (screenWidth - windowWidth) / 2;
-        int centerY = (screenHeight - windowHeight) / 2;
-        
+        int centerX = (screenWidth - (windowRect.right - windowRect.left)) / 2;
+        int centerY = (screenHeight - (windowRect.bottom - windowRect.top)) / 2;
         SetWindowPos(hwnd, NULL, centerX, centerY, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     ')
 	@:noCompletion
-	public static function centerWindow()
-	{
-	}
+	public static function centerWindow() {}
 
-	@:functionCode('
-	POINT MousePoint;
-	GetCursorPos(&MousePoint);
+	@:functionCode('POINT MousePoint; GetCursorPos(&MousePoint); return MousePoint.x;')
+	static public function getCursorPositionX() return 0;
 
-	return MousePoint.x;
-    ')
-	static public function getCursorPositionX()
-	{
-		return 0;
-	}
-
-	@:functionCode('
-	POINT MousePoint;
-	GetCursorPos(&MousePoint);
-
-	return MousePoint.y;
-    ')
-	static public function getCursorPositionY()
-	{
-		return 0;
-	}
+	@:functionCode('POINT MousePoint; GetCursorPos(&MousePoint); return MousePoint.y;')
+	static public function getCursorPositionY() return 0;
 
 	@:functionCode('
 		BOOL isAdmin = FALSE;
 		SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
 		PSID adminGroup = nullptr;
-
-		if (AllocateAndInitializeSid(&ntAuthority, 2,
-			SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
-			0, 0, 0, 0, 0, 0, &adminGroup)) {
-
-			if (!CheckTokenMembership(nullptr, adminGroup, &isAdmin)) {
-				isAdmin = FALSE;
-			}
-
+		if (AllocateAndInitializeSid(&ntAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &adminGroup)) {
+			if (!CheckTokenMembership(nullptr, adminGroup, &isAdmin)) isAdmin = FALSE;
 			FreeSid(adminGroup);
 		}
-
 		return isAdmin == TRUE;
 	')
-	public static function isRunningAsAdmin():Bool
-	{
-		return false;
-	}
+	public static function isRunningAsAdmin():Bool return false;
 
 	@:functionCode('
 		int screenWidth = GetSystemMetrics(SM_CXSCREEN);
 		int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-		screenCapture(0, 0, screenWidth, screenHeight, path);
+		screenCapture(0, 0, screenWidth, screenHeight, path.c_str());
 	')
 	@:noCompletion
-	public static function windowsScreenShot(path:String)
-	{
-	}
+	public static function windowsScreenShot(path:String) {}
 
 	/**
 	 * @see https://stackoverflow.com/questions/14227171/how-to-get-memory-information-ram-type-e-g-ddr-ddr2-ddr3-with-wmi-c
@@ -552,22 +366,19 @@ class WindowsCPP
 	@:functionCode("
 		unsigned long long allocatedRAM = 0;
 		GetPhysicallyInstalledSystemMemory(&allocatedRAM);
-		int ramSizeMB = (allocatedRAM / 1024);
+		int ramSizeMB = (int)(allocatedRAM / 1024);
 
 		if (!showType) {
 			char result[64];
 			sprintf_s(result, sizeof(result), \"%d MB\", ramSizeMB);
-			return result;
+			return ::String(result);
 		}
 
 		std::string ramType = \"\";
-
-		DWORD bufferSize = 0;
-		bufferSize = GetSystemFirmwareTable('RSMB', 0, NULL, 0);
+		DWORD bufferSize = GetSystemFirmwareTable('RSMB', 0, NULL, 0);
 		
 		if (bufferSize > 0) {
 			BYTE* pBuffer = new BYTE[bufferSize];
-			
 			if (GetSystemFirmwareTable('RSMB', 0, pBuffer, bufferSize) == bufferSize) {
 				const SMBIOS_HEADER* pHeader = (const SMBIOS_HEADER*)pBuffer;
 				const BYTE* pData = pBuffer;
@@ -576,297 +387,139 @@ class WindowsCPP
 				while (pData + sizeof(SMBIOS_HEADER) < pBuffer + bufferSize) {
 					const SMBIOS_HEADER* pStructHeader = (const SMBIOS_HEADER*)pData;
 					
-					if (pStructHeader->Type == 17) { // Memory Device Structure
-						if (pStructHeader->Length >= 0x15) {
-							BYTE memoryType = pData[0x12];
-							
-							switch (memoryType) {
-								case 0x01: ramType = \"Other\"; break;
-								case 0x02: ramType = \"Unknown\"; break;
-								case 0x03: ramType = \"DRAM\"; break;
-								case 0x04: ramType = \"EDRAM\"; break;
-								case 0x05: ramType = \"VRAM\"; break;
-								case 0x06: ramType = \"SRAM\"; break;
-								case 0x07: ramType = \"RAM\"; break;
-								case 0x08: ramType = \"ROM\"; break;
-								case 0x09: ramType = \"FLASH\"; break;
-								case 0x0A: ramType = \"EEPROM\"; break;
-								case 0x0B: ramType = \"FEPROM\"; break;
-								case 0x0C: ramType = \"EPROM\"; break;
-								case 0x0D: ramType = \"CDRAM\"; break;
-								case 0x0E: ramType = \"3DRAM\"; break;
-								case 0x0F: ramType = \"SDRAM\"; break;
-								case 0x10: ramType = \"SGRAM\"; break;
-								case 0x11: ramType = \"RDRAM\"; break;
-								case 0x12: ramType = \"DDR\"; break;
-								case 0x13: ramType = \"DDR2\"; break;
-								case 0x14: ramType = \"DDR2 FB-DIMM\"; break;
-								case 0x18: ramType = \"DDR3\"; break;
-								case 0x19: ramType = \"FBD2\"; break;
-								case 0x1A: ramType = \"DDR4\"; break;
-								case 0x1B: ramType = \"LPDDR\"; break;
-								case 0x1C: ramType = \"LPDDR2\"; break;
-								case 0x1D: ramType = \"LPDDR3\"; break;
-								case 0x1E: ramType = \"LPDDR4\"; break;
-								case 0x1F: ramType = \"DDR5\"; break;
-								case 0x20: ramType = \"LPDDR5\"; break;
-								case 0x21: ramType = \"LPDDR5X\"; break;
-								case 0x22: ramType = \"DDR6\"; break;
-								case 0x23: ramType = \"LPDDR6\"; break;
-								case 0x24: ramType = \"HBM\"; break;
-								case 0x25: ramType = \"HBM2\"; break;
-								case 0x26: ramType = \"HBM2E\"; break;
-								case 0x27: ramType = \"HBM3\"; break;
-								case 0x28: ramType = \"GDDR\"; break;
-								case 0x29: ramType = \"GDDR2\"; break;
-								case 0x2A: ramType = \"GDDR3\"; break;
-								case 0x2B: ramType = \"GDDR4\"; break;
-								case 0x2C: ramType = \"GDDR5\"; break;
-								case 0x2D: ramType = \"GDDR5X\"; break;
-								case 0x2E: ramType = \"GDDR6\"; break;
-								case 0x2F: ramType = \"GDDR6X\"; break;
-								case 0x30: ramType = \"GDDR7\"; break; // future thingie
-								default: 
-									char unknownType[16];
-									sprintf_s(unknownType, sizeof(unknownType), \"Unknown (0x%02X)\", memoryType);
-									ramType = unknownType;
-									break;
-							}
-							
-							if (!ramType.empty() && ramType != \"Unknown\" && ramType != \"Other\") {
-								break;
-							}
+					// Type 17 - Memory Device
+					if (pStructHeader->Type == 17 && pStructHeader->Length >= 0x15) {
+						BYTE memoryType = pData[0x12];
+						
+						switch (memoryType) {
+							case 0x12: ramType = \"DDR\"; break;      // 18
+							case 0x13: ramType = \"DDR2\"; break;     // 19
+							case 0x14: ramType = \"DDR2 FB-DIMM\"; break; // 20
+							case 0x18: ramType = \"DDR3\"; break;     // 24
+							case 0x1A: ramType = \"DDR4\"; break;     // 26
+							case 0x1B: ramType = \"LPDDR4\"; break;   // 27 (sometimes LPDDR)
+							case 0x1C: ramType = \"LPDDR4X\"; break;  // 28
+							case 0x1D: ramType = \"DDR5\"; break;     // 29
+							case 0x1E: ramType = \"LPDDR5\"; break;   // 30
+							case 0x1F: ramType = \"LVM\"; break;      // 31 (Logical non-volatile device)
+							case 0x20: ramType = \"HBM\"; break;      // 32
+							case 0x21: ramType = \"HBM2\"; break;     // 33
+							case 0x22: ramType = \"DDR5\"; break;     // 34
+							case 0x23: ramType = \"LPDDR5\"; break;   // 35
+							case 0x24: ramType = \"HBM3\"; break;     // 36
+							case 0x25: ramType = \"LPDDR5X\"; break;  // 37
+							default: break;
 						}
+						
+						if (!ramType.empty()) break;
 					}
 					
 					pData += pStructHeader->Length;
-					while (pData < pBuffer + bufferSize && !(pData[0] == 0 && pData[1] == 0)) {
-						pData++;
-					}
+					while (pData < pBuffer + bufferSize && !(pData[0] == 0 && pData[1] == 0)) pData++;
 					pData += 2;
-					
-					if (pData >= pBuffer + bufferSize) {
-						break;
-					}
 				}
 			}
-			
 			delete[] pBuffer;
 		}
 		
 		char result[256];
-		if (!ramType.empty() && ramType != \"Unknown\" && ramType != \"Other\") {
+		if (!ramType.empty()) {
 			sprintf_s(result, sizeof(result), \"%d MB (%s)\", ramSizeMB, ramType.c_str());
 		} else {
 			sprintf_s(result, sizeof(result), \"%d MB\", ramSizeMB);
 		}
-		return result;
+		return ::String(result);
 	")
-	public static function obtainRAM(showType:Bool = true):String
-	{
-		return "";
-	}
+	public static function obtainRAM(showType:Bool = true):String return "";
 
 	@:functionCode('
-		bool value = hide;
 		HWND hwnd = FindWindowA("Shell_traywnd", nullptr);
 		HWND hwnd2 = FindWindowA("Shell_SecondaryTrayWnd", nullptr);
-	
-		if (value == true) {
-			ShowWindow(hwnd, SW_HIDE);
-			ShowWindow(hwnd2, SW_HIDE);
-		} else {
-			ShowWindow(hwnd, SW_SHOW);
-			ShowWindow(hwnd2, SW_SHOW);
-		}
+		ShowWindow(hwnd, hide ? SW_HIDE : SW_SHOW);
+		ShowWindow(hwnd2, hide ? SW_HIDE : SW_SHOW);
     ')
-	public static function hideTaskbar(hide:Bool)
-	{
-	}
+	public static function hideTaskbar(hide:Bool) {}
 
 	@:functionCode('
-		const char* filepath = path;
-	
-		int uiAction = SPIF_UPDATEINIFILE | SPIF_SENDCHANGE;
-		char filepathBuffer[MAX_PATH];
-		strcpy_s(filepathBuffer, filepath);
-	
-		SystemParametersInfoA(SPI_SETDESKWALLPAPER, 0, filepathBuffer, uiAction);	
+		SystemParametersInfoA(SPI_SETDESKWALLPAPER, 0, (PVOID)path.c_str(), SPIF_UPDATEINIFILE | SPIF_SENDCHANGE);	
     ')
-	public static function setWallpaper(path:String)
-	{
-	}
-
-	@:functionCode('
-		bool value = hide;
-		HWND hProgman = FindWindowW (L"Progman", L"Program Manager");
-		HWND hChild = GetWindow (hProgman, GW_CHILD);
-		
-		if (value == true) {
-			ShowWindow (hChild, SW_HIDE);
-		} else {
-			ShowWindow (hChild, SW_SHOW);
-		}
-    ')
-	public static function hideDesktopIcons(hide:Bool)
-	{
-	}
-
-	@:functionCode('
-		HWND hd;
-
-		hd = FindWindowA("Progman", NULL);
-		hd = FindWindowEx(hd, 0, "SHELLDLL_DefView", NULL);
-		hd = FindWindowEx(hd, 0, "SysListView32", NULL);
-
-		SetWindowPos(hd, NULL, x, NULL, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-    ')
-	public static function moveDesktopWindowsInX(x:Int)
-	{
-	}
-
-	@:functionCode('
-		HWND hd;
-
-		hd = FindWindowA("Progman", NULL);
-		hd = FindWindowEx(hd, 0, "SHELLDLL_DefView", NULL);
-		hd = FindWindowEx(hd, 0, "SysListView32", NULL);
-
-		SetWindowPos(hd, NULL, NULL, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-    ')
-	public static function moveDesktopWindowsInY(y:Int)
-	{
-	}
-
-	@:functionCode('
-		HWND hd;
-
-		hd = FindWindowA("Progman", NULL);
-		hd = FindWindowEx(hd, 0, "SHELLDLL_DefView", NULL);
-		hd = FindWindowEx(hd, 0, "SysListView32", NULL);
-
-		SetWindowPos(hd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-    ')
-	public static function moveDesktopWindowsInXY(x:Int, y:Int)
-	{
-	}
-
-	@:functionCode('
-		HWND hd;
-
-		hd = FindWindowA("Progman", NULL);
-		hd = FindWindowEx(hd, 0, "SHELLDLL_DefView", NULL);
-		hd = FindWindowEx(hd, 0, "SysListView32", NULL);
-		RECT rect;
-
-		GetWindowRect(hd, &rect);
-
-		int x = rect.left;
-
-		return x;
-	')
-	public static function returnDesktopWindowsX()
-	{
-		return 0;
-	}
-
-	@:functionCode('
-		HWND hd;
-
-		hd = FindWindowA("Progman", NULL);
-		hd = FindWindowEx(hd, 0, "SHELLDLL_DefView", NULL);
-		hd = FindWindowEx(hd, 0, "SysListView32", NULL);
-		RECT rect;
-
-		GetWindowRect(hd, &rect);
-
-		int y = rect.top;
-
-		return y;
-	')
-	public static function returnDesktopWindowsY()
-	{
-		return 0;
-	}
+	public static function setWallpaper(path:String) {}
 
 	@:functionCode('
 		HWND hProgman = FindWindowW(L"Progman", L"Program Manager");
 		HWND hChild = GetWindow(hProgman, GW_CHILD);
-
-		float a = alpha;
-
-		if (alpha > 1) {
-			a = 1;
-		} 
-		if (alpha < 0) {
-			a = 0;
-		}
-
-       	SetLayeredWindowAttributes(hChild, 0, (255 * (a * 100)) / 100, LWA_ALPHA);
+		ShowWindow(hChild, hide ? SW_HIDE : SW_SHOW);
     ')
-	public static function _setDesktopWindowsAlpha(alpha:Float)
-	{
-		return alpha;
-	}
+	public static function hideDesktopIcons(hide:Bool) {}
+
+	@:functionCode('
+		HWND hd = FindWindowEx(FindWindowEx(FindWindowA("Progman", NULL), 0, "SHELLDLL_DefView", NULL), 0, "SysListView32", NULL);
+		SetWindowPos(hd, NULL, x, NULL, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    ')
+	public static function moveDesktopWindowsInX(x:Int) {}
+
+	@:functionCode('
+		HWND hd = FindWindowEx(FindWindowEx(FindWindowA("Progman", NULL), 0, "SHELLDLL_DefView", NULL), 0, "SysListView32", NULL);
+		SetWindowPos(hd, NULL, NULL, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    ')
+	public static function moveDesktopWindowsInY(y:Int) {}
+
+	@:functionCode('
+		HWND hd = FindWindowEx(FindWindowEx(FindWindowA("Progman", NULL), 0, "SHELLDLL_DefView", NULL), 0, "SysListView32", NULL);
+		SetWindowPos(hd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    ')
+	public static function moveDesktopWindowsInXY(x:Int, y:Int) {}
+
+	@:functionCode('
+		HWND hd = FindWindowEx(FindWindowEx(FindWindowA("Progman", NULL), 0, "SHELLDLL_DefView", NULL), 0, "SysListView32", NULL);
+		RECT rect; GetWindowRect(hd, &rect);
+		return rect.left;
+	')
+	public static function returnDesktopWindowsX() return 0;
+
+	@:functionCode('
+		HWND hd = FindWindowEx(FindWindowEx(FindWindowA("Progman", NULL), 0, "SHELLDLL_DefView", NULL), 0, "SysListView32", NULL);
+		RECT rect; GetWindowRect(hd, &rect);
+		return rect.top;
+	')
+	public static function returnDesktopWindowsY() return 0;
+
+	@:functionCode('
+		HWND hProgman = FindWindowW(L"Progman", L"Program Manager");
+		HWND hChild = GetWindow(hProgman, GW_CHILD);
+		float a = alpha > 1 ? 1 : (alpha < 0 ? 0 : alpha);
+       	SetLayeredWindowAttributes(hChild, 0, (BYTE)(255 * a), LWA_ALPHA);
+    ')
+	public static function _setDesktopWindowsAlpha(alpha:Float) return alpha;
 
 	@:functionCode('
 		HWND hwnd = FindWindowA("Shell_traywnd", nullptr);
 		HWND hwnd2 = FindWindowA("Shell_SecondaryTrayWnd", nullptr);
-
-		float a = alpha;
-
-		if (alpha > 1) {
-			a = 1;
-		} 
-		if (alpha < 0) {
-			a = 0;
-		}
-
-       	SetLayeredWindowAttributes(hwnd, 0, (255 * (a * 100)) / 100, LWA_ALPHA);
-		SetLayeredWindowAttributes(hwnd2, 0, (255 * (a * 100)) / 100, LWA_ALPHA);
+		float a = alpha > 1 ? 1 : (alpha < 0 ? 0 : alpha);
+       	SetLayeredWindowAttributes(hwnd, 0, (BYTE)(255 * a), LWA_ALPHA);
+		SetLayeredWindowAttributes(hwnd2, 0, (BYTE)(255 * a), LWA_ALPHA);
     ')
-	public static function _setTaskBarAlpha(alpha:Float)
-	{
-		return alpha;
-	}
+	public static function _setTaskBarAlpha(alpha:Float) return alpha;
 
 	@:functionCode('
-	HWND window;
-	HWND window2;
-
-	switch (numberMode) {
-		case 0:
-			window = FindWindowW(L"Progman", L"Program Manager");
-			window = GetWindow(window, GW_CHILD);
-		case 1:
-			window = FindWindowA("Shell_traywnd", nullptr);
-			window2 = FindWindowA("Shell_SecondaryTrayWnd", nullptr);
-	}
-
-	if (numberMode != 1) {
+		HWND window;
+		HWND window2;
+		switch (numberMode) {
+			case 0:
+				window = GetWindow(FindWindowW(L"Progman", L"Program Manager"), GW_CHILD);
+				break;
+			case 1:
+				window = FindWindowA("Shell_traywnd", nullptr);
+				window2 = FindWindowA("Shell_SecondaryTrayWnd", nullptr);
+				break;
+		}
 		SetWindowLong(window, GWL_EXSTYLE, GetWindowLong(window, GWL_EXSTYLE) ^ WS_EX_LAYERED);
-	}
-	else {
-		SetWindowLong(window, GWL_EXSTYLE, GetWindowLong(window, GWL_EXSTYLE) ^ WS_EX_LAYERED);
-		SetWindowLong(window2, GWL_EXSTYLE, GetWindowLong(window2, GWL_EXSTYLE) ^ WS_EX_LAYERED);
-	}
+		if (numberMode == 1) SetWindowLong(window2, GWL_EXSTYLE, GetWindowLong(window2, GWL_EXSTYLE) ^ WS_EX_LAYERED);
 	')
-	public static function _setWindowLayeredMode(numberMode:Int)
-	{
-	}
+	public static function _setWindowLayeredMode(numberMode:Int) {}
 
-	public static function disableWindowsGhosting():Void 
-	{
-		untyped __cpp__('DisableProcessWindowsGhosting()');
-	}
-
-	/**
-    * Turns off that annoying "Report to Microsoft" dialog that pops up when the game/programm crashes.
-    */
-	public static function disableWindowsReport():Void
-	{
-		untyped __cpp__('SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);');
-	}
+	public static function disableWindowsGhosting():Void untyped __cpp__('DisableProcessWindowsGhosting()');
+	public static function disableWindowsReport():Void untyped __cpp__('SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);');
 }
 #else
 #error "SL-Windows-API supports only Windows(C++) platform"

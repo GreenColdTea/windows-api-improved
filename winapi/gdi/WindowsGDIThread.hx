@@ -57,7 +57,8 @@ class WindowsGDIThread
 				trace('Windows GDI Thread running...');
 				while (runningThread) {
 					if (temporarilyPaused) {
-						return;
+						Sys.sleep(0.1);
+						continue;
 					}
 
 					elapsedTime++;
@@ -68,11 +69,12 @@ class WindowsGDIThread
 							continue;
 
 						if (gdi.wait > 0) {
-							// Wait if wait time is greater than 0, slows down the effect
 							Sys.sleep(gdi.wait);
 						}
 						gdi.gdiEffect.update();
 					}
+					
+					Sys.sleep(0.01);
 				}
 			} catch (e:Dynamic) {
 				trace('Error in Windows GDI Thread: ' + e);
