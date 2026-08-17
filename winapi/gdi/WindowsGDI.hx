@@ -7,6 +7,8 @@ package winapi.gdi;
  * 
  * Author: Slushi
  */
+
+#if (cpp && windows)
 @:buildXml('
 <target id="haxe">
     <lib name="dwmapi.lib" if="windows" />
@@ -215,6 +217,71 @@ class WindowsGDI
 		else trace('[WinEffect_${effect}] not found!');
 	}
 }
+#elseif (hl && windows)
+class WindowsGDI {
+	@:hlNative("winapi", "gdi_set_time") public static function setElapsedTime(elapsed:Float):Void {}
+	@:hlNative("winapi", "gdi_draw_icons") public static function _drawIcons():Void {}
+	@:hlNative("winapi", "gdi_blink") public static function _screenBlink():Void {}
+	@:hlNative("winapi", "gdi_glitch") public static function _screenGlitches():Void {}
+	@:hlNative("winapi", "gdi_tunnel") public static function _screenTunnel():Void {}
+	@:hlNative("winapi", "gdi_shake") public static function _screenShake():Void {}
+	@:hlNative("winapi", "gdi_set_title") public static function _setCustomTitleTextToWindows(text:String = "..."):Void {}
+
+	/**
+	 * Prepares a GDI effect to be used later
+	 * @param effect The name of the effect to prepare
+	 * @param wait The wait time between each effect update (in milliseconds)
+	 */
+	public static function prepareGDIEffect(effect:String, wait:Float = 0)
+	{
+		var effectClass = Type.resolveClass('winapi.gdi.WinEffect_' + effect);
+		if (effectClass != null)
+		{
+			var initEffect = Type.createInstance(effectClass, []);
+			WindowsGDIThread.gdiEffects.set(effect, new WindowsGDIEffectData(initEffect, wait, false));
+			trace('created [${effect}] GDI effect from class [WinEffect_${effect}]');
+		}
+		else
+		{
+			trace('[WinEffect_${effect}] not found!');
+		}
+	}
+
+	/**
+	 * Sets the wait time between each effect update
+	 * @param effect The name of the effect to set the wait time
+	 * @param wait The wait time between each effect update (in milliseconds)
+	 */
+	public static function setGDIEffectWaitTime(effect:String, wait:Float)
+	{
+		var gdi = WindowsGDIThread.gdiEffects.get(effect);
+		if (gdi != null) gdi.wait = wait;
+		else trace('[WinEffect_${effect}] not found!');
+	}
+
+	/**
+	 * Removes a GDI effect
+	 * @param effect The name of the effect to remove
+	 */
+	public static function removeGDIEffect(effect:String)
+	{
+		if (WindowsGDIThread.gdiEffects.exists(effect)) WindowsGDIThread.gdiEffects.remove(effect);
+		else trace('[WinEffect_${effect}] not found!');
+	}
+
+	/**
+	 * Enables or disables a GDI effect
+	 * @param effect The name of the effect to enable or disable
+	 * @param enabled Whether to enable or disable the effect
+	 */
+	public static function enableGDIEffect(effect:String, enabled:Bool = true)
+	{
+		var gdi = WindowsGDIThread.gdiEffects.get(effect);
+		if (gdi != null) gdi.enabled = enabled;
+		else trace('[WinEffect_${effect}] not found!');
+	}
+}
+#end
 
 class WindowsGDIEffect { public function update() {} }
 

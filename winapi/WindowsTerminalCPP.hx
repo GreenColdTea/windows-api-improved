@@ -136,6 +136,28 @@ class WindowsTerminalCPP
 	@:functionCode('ShowWindow(GetConsoleWindow(), SW_HIDE);')
 	public static function hideConsoleWindow() {}
 }
+#elseif (hl && windows)
+class WindowsTerminalCPP {
+	@:hlNative("winapi", "term_clear") public static function clearTerminal():Void {}
+	@:hlNative("winapi", "term_alloc") public static function allocConsole():Void {}
+	@:hlNative("winapi", "term_hide_main") public static function hideMainWindow():Void {}
+	@:hlNative("winapi", "term_set_title") public static function setConsoleTitle(text:String):Void {}
+	@:hlNative("winapi", "term_set_icon") public static function setConsoleWindowIcon(path:String):Void {}
+	@:hlNative("winapi", "term_center") public static function centerConsoleWindow():Void {}
+	@:hlNative("winapi", "term_disable_resize") public static function disableResizeConsoleWindow():Void {}
+	@:hlNative("winapi", "term_disable_close") public static function disableCloseConsoleWindow():Void {}
+	@:hlNative("winapi", "term_maximize") public static function maximizeConsoleWindow():Void {}
+	@:hlNative("winapi", "term_set_cursor") public static function setConsoleCursorPosition(x:Int, y:Int):Void {}
+	@:hlNative("winapi", "term_get_cursor_x") public static function getConsoleCursorPositionInX():Int return 0;
+	@:hlNative("winapi", "term_get_cursor_y") public static function getConsoleCursorPositionInY():Int return 0;
+	@:hlNative("winapi", "term_set_pos_x") public static function setConsoleWindowPositionX(x:Int):Void {}
+	@:hlNative("winapi", "term_set_pos_y") public static function setConsoleWindowPositionY(y:Int):Void {}
+	@:hlNative("winapi", "term_get_width") public static function getConsoleWindowWidth():Int return 0;
+	@:hlNative("winapi", "term_get_height") public static function getConsoleWindowHeight():Int return 0;
+	@:hlNative("winapi", "term_get_pos_x") public static function getConsoleWindowPositionX():Int return 0;
+	@:hlNative("winapi", "term_get_pos_y") public static function getConsoleWindowPositionY():Int return 0;
+	@:hlNative("winapi", "term_hide") public static function hideConsoleWindow():Void {}
+}
 #else
-#error "SL-Windows-API supports only Windows(C++) platform"
+#error "SL-Windows-API supports only Windows platform (C++ or HashLink)"
 #end

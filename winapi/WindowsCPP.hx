@@ -520,7 +520,40 @@ class WindowsCPP
 
 	public static function disableWindowsGhosting():Void untyped __cpp__('DisableProcessWindowsGhosting()');
 	public static function disableWindowsReport():Void untyped __cpp__('SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);');
+	public static function setConsoleOutputToUTF8():Void untyped __cpp__('SetConsoleOutputCP(CP_UTF8);');
+}
+#elseif (hl && windows)
+class WindowsCPP {
+	@:hlNative("winapi", "show_message_box") public static function showMessageBox(caption:String, message:String, icon:Int, type:Int):Void {}
+	@:hlNative("winapi", "show_scrollable_message") public static function showScrollableMessage(caption:String, message:String):Void {}
+	@:hlNative("winapi", "set_window_visible") public static function setWindowVisible(show:Bool):Void {}
+	@:hlNative("winapi", "get_windows_transparent") public static function getWindowsTransparent(res:Int = 0):Int return res;
+	@:hlNative("winapi", "disable_window_transparent") public static function disableWindowTransparent(res:Int = 0):Int return res;
+	@:hlNative("winapi", "set_window_border_color") public static function setWindowBorderColor(r:Int, g:Int, b:Int):Void {}
+	@:hlNative("winapi", "set_window_layered") public static function _setWindowLayered():Void {}
+	@:hlNative("winapi", "set_window_alpha") public static function setWindowAlpha(alpha:Float):Float return alpha;
+	@:hlNative("winapi", "get_window_alpha") public static function getWindowAlpha():Float return 1.0;
+	@:hlNative("winapi", "center_window") public static function centerWindow():Void {}
+	@:hlNative("winapi", "get_cursor_x") public static function getCursorPositionX():Int return 0;
+	@:hlNative("winapi", "get_cursor_y") public static function getCursorPositionY():Int return 0;
+	@:hlNative("winapi", "is_admin") public static function isRunningAsAdmin():Bool return false;
+	@:hlNative("winapi", "screen_shot") public static function windowsScreenShot(path:String):Void {}
+	@:hlNative("winapi", "obtain_ram") public static function obtainRAM(showType:Bool = true):String return "";
+	@:hlNative("winapi", "hide_taskbar") public static function hideTaskbar(hide:Bool):Void {}
+	@:hlNative("winapi", "set_wallpaper") public static function setWallpaper(path:String):Void {}
+	@:hlNative("winapi", "hide_desktop_icons") public static function hideDesktopIcons(hide:Bool):Void {}
+	@:hlNative("winapi", "move_desktop_x") public static function moveDesktopWindowsInX(x:Int):Void {}
+	@:hlNative("winapi", "move_desktop_y") public static function moveDesktopWindowsInY(y:Int):Void {}
+	@:hlNative("winapi", "move_desktop_xy") public static function moveDesktopWindowsInXY(x:Int, y:Int):Void {}
+	@:hlNative("winapi", "get_desktop_x") public static function returnDesktopWindowsX():Int return 0;
+	@:hlNative("winapi", "get_desktop_y") public static function returnDesktopWindowsY():Int return 0;
+	@:hlNative("winapi", "set_desktop_alpha") public static function _setDesktopWindowsAlpha(alpha:Float):Float return alpha;
+	@:hlNative("winapi", "set_taskbar_alpha") public static function _setTaskBarAlpha(alpha:Float):Float return alpha;
+	@:hlNative("winapi", "set_layered_mode") public static function _setWindowLayeredMode(mode:Int):Void {}
+	@:hlNative("winapi", "disable_ghosting") public static function disableWindowsGhosting():Void {}
+	@:hlNative("winapi", "disable_report") public static function disableWindowsReport():Void {}
+	@:hlNative("winapi", "set_console_output_to_utf8") public static function setConsoleOutputToUTF8():Void {}
 }
 #else
-#error "SL-Windows-API supports only Windows(C++) platform"
+#error "SL-Windows-API supports only Windows platform (C++ or HashLink)"
 #end

@@ -8,8 +8,9 @@ import sys.io.Process;
  * 
  * Author: Slushi
  */
-#if (cpp && windows)
-enum abstract MessageBoxIcon(Int) {
+
+#if ((cpp || hl) && windows)
+enum abstract MessageBoxIcon(Int) to Int {
 	var MSG_ERROR = 0x00000010;
 	var MSG_QUESTION = 0x00000020;
 	var MSG_WARNING = 0x00000030;
@@ -17,7 +18,7 @@ enum abstract MessageBoxIcon(Int) {
 	var MSG_NONE = 0x00;
 }
 
-enum abstract MessageBoxType(Int) {
+enum abstract MessageBoxType(Int) to Int {
 	var MSG_ABORTRETRYIGNORE = 0x00000002;
 	var MSG_CANCELTRYCONTINUE = 0x00000006;
 	var MSG_HELP = 0x00004000;
@@ -38,6 +39,7 @@ class WindowsAPI {
     public static function obtainRAMInfo(showType:Bool = true):String return WindowsCPP.obtainRAM(showType);
 	public static function disableWindowsGhosting() WindowsCPP.disableWindowsGhosting();
 	public static function disableWindowsReport() WindowsCPP.disableWindowsReport();
+	public static function setConsoleOutputToUTF8() WindowsCPP.setConsoleOutputToUTF8();
 	public static function screenCapture(path:String) WindowsCPP.windowsScreenShot(path);
 	public static function showMessageBox(message:String, caption:String, icon:MessageBoxIcon = MSG_WARNING, type:MessageBoxType = MSG_OK) WindowsCPP.showMessageBox(caption, message, icon, type);
 	public static function showScrollableMessage(message:String, caption:String) WindowsCPP.showScrollableMessage(caption, message);
@@ -95,9 +97,7 @@ class WindowsAPI {
 
 	public static function saveCurrentWindowsWallpaper() {
 		var path = '${Sys.getEnv("AppData")}\\Microsoft\\Windows\\Themes\\TranscodedWallpaper';
-		if (path != null) {
-			_windowsWallpaperPath = path;
-		}
+		if (path != null) _windowsWallpaperPath = path;
 	}
 
 	public static function setOldWindowsWallpaper() {
@@ -114,8 +114,6 @@ class WindowsAPI {
 			+ "$xml = New-Object Windows.Data.Xml.Dom.XmlDocument;"
 			+ "$xml.LoadXml($toastXml.OuterXml);"
 			+ "$toast = [Windows.UI.Notifications.ToastNotification]::new($xml);"
-			+ "$toast.Tag = 'Test1';"
-			+ "$toast.Group = 'Test2';"
 			+ "$notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('" + title + "');"
 			+ "$notifier.Show($toast);}\"";
 
@@ -136,5 +134,5 @@ class WindowsAPI {
 	}
 }
 #else
-#error "SL-Windows-API supports only Windows(C++) platform"
+#error "SL-Windows-API supports only Windows platform (C++ or HashLink)"
 #end
