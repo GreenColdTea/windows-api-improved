@@ -186,15 +186,15 @@ HL_PRIM void HL_NAME(set_window_layered)() {
     SetWindowLong(window, GWL_EXSTYLE, GetWindowLong(window, GWL_EXSTYLE) ^ WS_EX_LAYERED);
 }
 
-HL_PRIM float HL_NAME(set_window_alpha)(float alpha) {
+HL_PRIM double HL_NAME(set_window_alpha)(double alpha) {
     HWND window = GET_MAIN_WINDOW();
-    float a = alpha > 1 ? 1 : (alpha < 0 ? 0 : alpha);
+    double a = alpha > 1.0 ? 1.0 : (alpha < 0.0 ? 0.0 : alpha);
     SetLayeredWindowAttributes(window, 0, (BYTE)(255 * a), LWA_ALPHA);
 
     return alpha;
 }
 
-HL_PRIM float HL_NAME(get_window_alpha)() {
+HL_PRIM double HL_NAME(get_window_alpha)() {
     HWND hwnd = GET_MAIN_WINDOW();
     DWORD exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
     BYTE alpha = 255;
@@ -203,7 +203,7 @@ HL_PRIM float HL_NAME(get_window_alpha)() {
         GetLayeredWindowAttributes(hwnd, NULL, &alpha, &flags);
     }
 
-    return static_cast<float>(alpha) / 255.0f;
+    return static_cast<double>(alpha) / 255.0;
 }
 
 HL_PRIM void HL_NAME(center_window)() {
@@ -414,18 +414,18 @@ HL_PRIM int HL_NAME(get_desktop_y)() {
     RECT rect; GetWindowRect(hd, &rect); return rect.top;
 }
 
-HL_PRIM float HL_NAME(set_desktop_alpha)(float alpha) {
+HL_PRIM double HL_NAME(set_desktop_alpha)(double alpha) {
     HWND hProgman = FindWindowW(L"Progman", L"Program Manager");
     HWND hChild = GetWindow(hProgman, GW_CHILD);
-    float a = alpha > 1 ? 1 : (alpha < 0 ? 0 : alpha);
+    double a = alpha > 1.0 ? 1.0 : (alpha < 0.0 ? 0.0 : alpha);
     SetLayeredWindowAttributes(hChild, 0, (BYTE)(255 * a), LWA_ALPHA);
     return alpha;
 }
 
-HL_PRIM float HL_NAME(set_taskbar_alpha)(float alpha) {
+HL_PRIM double HL_NAME(set_taskbar_alpha)(double alpha) {
     HWND hwnd = FindWindowA("Shell_traywnd", nullptr);
     HWND hwnd2 = FindWindowA("Shell_SecondaryTrayWnd", nullptr);
-    float a = alpha > 1 ? 1 : (alpha < 0 ? 0 : alpha);
+    double a = alpha > 1.0 ? 1.0 : (alpha < 0.0 ? 0.0 : alpha);
     SetLayeredWindowAttributes(hwnd, 0, (BYTE)(255 * a), LWA_ALPHA);
     SetLayeredWindowAttributes(hwnd2, 0, (BYTE)(255 * a), LWA_ALPHA);
     return alpha;
@@ -514,9 +514,9 @@ HL_PRIM void HL_NAME(term_hide)() { ShowWindow(GetConsoleWindow(), SW_HIDE); }
 // WINDOWS GDI FUNCTIONS
 // ====================================================================================
 
-static float elapsedTime = 0;
+static double elapsedTime = 0.0;
 
-HL_PRIM void HL_NAME(gdi_set_time)(float elapsed) { elapsedTime = elapsed; }
+HL_PRIM void HL_NAME(gdi_set_time)(double elapsed) { elapsedTime = elapsed; }
 
 HL_PRIM void HL_NAME(gdi_draw_icons)() {
 	int ix = GetSystemMetrics(SM_CXICON) / 2;
@@ -586,8 +586,8 @@ DEFINE_PRIM(_I32, get_windows_transparent, _I32);
 DEFINE_PRIM(_I32, disable_window_transparent, _I32);
 DEFINE_PRIM(_VOID, set_window_border_color, _I32 _I32 _I32);
 DEFINE_PRIM(_VOID, set_window_layered, _NO_ARG);
-DEFINE_PRIM(_F32, set_window_alpha, _F32);
-DEFINE_PRIM(_F32, get_window_alpha, _NO_ARG);
+DEFINE_PRIM(_F64, set_window_alpha, _F64);
+DEFINE_PRIM(_F64, get_window_alpha, _NO_ARG);
 DEFINE_PRIM(_VOID, center_window, _NO_ARG);
 DEFINE_PRIM(_I32, get_cursor_x, _NO_ARG);
 DEFINE_PRIM(_I32, get_cursor_y, _NO_ARG);
@@ -602,8 +602,8 @@ DEFINE_PRIM(_VOID, move_desktop_y, _I32);
 DEFINE_PRIM(_VOID, move_desktop_xy, _I32 _I32);
 DEFINE_PRIM(_I32, get_desktop_x, _NO_ARG);
 DEFINE_PRIM(_I32, get_desktop_y, _NO_ARG);
-DEFINE_PRIM(_F32, set_desktop_alpha, _F32);
-DEFINE_PRIM(_F32, set_taskbar_alpha, _F32);
+DEFINE_PRIM(_F64, set_desktop_alpha, _F64);
+DEFINE_PRIM(_F64, set_taskbar_alpha, _F64);
 DEFINE_PRIM(_VOID, set_layered_mode, _I32);
 DEFINE_PRIM(_VOID, disable_ghosting, _NO_ARG);
 DEFINE_PRIM(_VOID, disable_report, _NO_ARG);
@@ -629,7 +629,7 @@ DEFINE_PRIM(_I32, term_get_pos_x, _NO_ARG);
 DEFINE_PRIM(_I32, term_get_pos_y, _NO_ARG);
 DEFINE_PRIM(_VOID, term_hide, _NO_ARG);
 
-DEFINE_PRIM(_VOID, gdi_set_time, _F32);
+DEFINE_PRIM(_VOID, gdi_set_time, _F64);
 DEFINE_PRIM(_VOID, gdi_draw_icons, _NO_ARG);
 DEFINE_PRIM(_VOID, gdi_blink, _NO_ARG);
 DEFINE_PRIM(_VOID, gdi_glitch, _NO_ARG);
