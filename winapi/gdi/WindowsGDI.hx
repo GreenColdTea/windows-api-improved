@@ -128,13 +128,6 @@ static inline std::wstring UTF8ToWide(const char* utf8Str) {
     return wstr;
 }
 ')
-/*
- * This is the main class of the Windows GDI effects in this library, it has the C++ code of the effects, 
- * and there are functions to prepare, start and remove an added effect
- * (some of the GDI effect code is taken from the MENZ malware source code)
- * 
- * Author: Slushi
- */
 class WindowsGDI
 {
 	@:functionCode('elapsedTime = elapsed;')
