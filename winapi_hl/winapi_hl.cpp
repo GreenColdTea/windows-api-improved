@@ -157,20 +157,22 @@ HL_PRIM void HL_NAME(set_window_visible)(bool show) {
     ShowWindow(GET_MAIN_WINDOW(), show ? SW_SHOW : SW_HIDE);
 }
 
-HL_PRIM int HL_NAME(get_windows_transparent)(int res) {
+HL_PRIM int HL_NAME(get_windows_transparent)(int* res) {
     HWND hWnd = GET_MAIN_WINDOW();
-    res = SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-    if (res) SetLayeredWindowAttributes(hWnd, RGB(25, 25, 25), 0, LWA_COLORKEY);
+    int val = SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+    if (val) SetLayeredWindowAttributes(hWnd, RGB(25, 25, 25), 0, LWA_COLORKEY);
+    if (res) *res = val;
 
-    return res;
+    return val;
 }
 
-HL_PRIM int HL_NAME(disable_window_transparent)(int res) {
+HL_PRIM int HL_NAME(disable_window_transparent)(int* res) {
     HWND hWnd = GET_MAIN_WINDOW();
-    res = SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) ^ WS_EX_LAYERED);
-    if (res) SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 1, LWA_COLORKEY);
+    int val = SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) ^ WS_EX_LAYERED);
+    if (val) SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 1, LWA_COLORKEY);
+    if (res) *res = val;
 
-    return res;
+    return val;
 }
 
 HL_PRIM void HL_NAME(set_window_border_color)(int r, int g, int b) {
@@ -308,14 +310,12 @@ HL_PRIM void HL_NAME(screen_shot)(vstring* path) {
 
 typedef struct { BYTE Type; BYTE Length; WORD Handle; } SMBIOS_HEADER;
 
-HL_PRIM vstring* HL_NAME(obtain_ram)(vdynamic* showTypeVal) {
-    bool showType = showTypeVal ? showTypeVal->v.b : false;
-
+HL_PRIM vstring* HL_NAME(obtain_ram)(bool* showType) {
     unsigned long long allocatedRAM = 0;
     GetPhysicallyInstalledSystemMemory(&allocatedRAM);
     int ramSizeMB = (int)(allocatedRAM / 1024);
 
-    if (!showType) {
+    if (!showType || !(*showType)) {
         char result[64];
         sprintf_s(result, sizeof(result), "%d MB", ramSizeMB);
         return hl_make_string(UTF8ToWide(result).c_str());
@@ -584,8 +584,8 @@ HL_PRIM void HL_NAME(gdi_set_title)(vstring* text) {
 DEFINE_PRIM(_VOID, show_message_box, _STRING _STRING _I32 _I32);
 DEFINE_PRIM(_VOID, show_scrollable_message, _STRING _STRING);
 DEFINE_PRIM(_VOID, set_window_visible, _BOOL);
-DEFINE_PRIM(_I32, get_windows_transparent, _I32);
-DEFINE_PRIM(_I32, disable_window_transparent, _I32);
+DEFINE_PRIM(_I32, get_windows_transparent, _REF(_I32));
+DEFINE_PRIM(_I32, disable_window_transparent, _REF(_I32));
 DEFINE_PRIM(_VOID, set_window_border_color, _I32 _I32 _I32);
 DEFINE_PRIM(_VOID, set_window_layered, _NO_ARG);
 DEFINE_PRIM(_F64, set_window_alpha, _F64);
@@ -595,7 +595,7 @@ DEFINE_PRIM(_I32, get_cursor_x, _NO_ARG);
 DEFINE_PRIM(_I32, get_cursor_y, _NO_ARG);
 DEFINE_PRIM(_BOOL, is_admin, _NO_ARG);
 DEFINE_PRIM(_VOID, screen_shot, _STRING);
-DEFINE_PRIM(_STRING, obtain_ram, _NULL(_BOOL));
+DEFINE_PRIM(_STRING, obtain_ram, _REF(_BOOL));
 DEFINE_PRIM(_VOID, hide_taskbar, _BOOL);
 DEFINE_PRIM(_VOID, set_wallpaper, _STRING);
 DEFINE_PRIM(_VOID, hide_desktop_icons, _BOOL);
