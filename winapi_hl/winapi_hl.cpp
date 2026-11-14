@@ -308,7 +308,9 @@ HL_PRIM void HL_NAME(screen_shot)(vstring* path) {
 
 typedef struct { BYTE Type; BYTE Length; WORD Handle; } SMBIOS_HEADER;
 
-HL_PRIM vstring* HL_NAME(obtain_ram)(bool showType) {
+HL_PRIM vstring* HL_NAME(obtain_ram)(vdynamic* showTypeVal) {
+    bool showType = showTypeVal ? showTypeVal->v.b : false;
+
     unsigned long long allocatedRAM = 0;
     GetPhysicallyInstalledSystemMemory(&allocatedRAM);
     int ramSizeMB = (int)(allocatedRAM / 1024);
@@ -593,7 +595,7 @@ DEFINE_PRIM(_I32, get_cursor_x, _NO_ARG);
 DEFINE_PRIM(_I32, get_cursor_y, _NO_ARG);
 DEFINE_PRIM(_BOOL, is_admin, _NO_ARG);
 DEFINE_PRIM(_VOID, screen_shot, _STRING);
-DEFINE_PRIM(_STRING, obtain_ram, _BOOL);
+DEFINE_PRIM(_STRING, obtain_ram, _NULL(_BOOL));
 DEFINE_PRIM(_VOID, hide_taskbar, _BOOL);
 DEFINE_PRIM(_VOID, set_wallpaper, _STRING);
 DEFINE_PRIM(_VOID, hide_desktop_icons, _BOOL);
